@@ -1,0 +1,30 @@
+GET http://localhost:8080/notification
+
+###
+GET http://localhost:9090/notification
+
+###
+POST http://localhost:8080/notification
+Content-Type: application/json
+
+{
+  "title": "Hello 8080 3",
+  "body": "World",
+  "servity": "Warning"
+}
+
+###
+POST http://localhost:9090/notification
+Content-Type: application/json
+
+{
+  "title": "Hello 9090 3",
+  "body": "World",
+  "servity": "Warning"
+}
+
+###
+POST http://localhost:8080/notification/id/read
+
+###
+POST http://localhost:8080/notification/id/read
