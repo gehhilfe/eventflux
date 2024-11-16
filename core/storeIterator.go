@@ -1,22 +1,19 @@
 package core
 
 import (
-	"log/slog"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hallgren/eventsourcing/core"
 )
 
 type storeIterator struct {
-	m         StoreManager
-	positions sync.Map
+	m        StoreManager
+	position core.Version
 
 	pacer       *time.Ticker
 	closeSignal chan struct{}
-	ch          chan StoreEvent
-	value       StoreEvent
+	ch          chan Event
+	value       Event
 }
 
 // Close implements StoreIterator.
@@ -25,7 +22,7 @@ func (i *storeIterator) Close() {
 }
 
 // Value implements StoreIterator.
-func (i *storeIterator) Value() StoreEvent {
+func (i *storeIterator) Value() Event {
 	return i.value
 }
 
@@ -38,23 +35,14 @@ func (i *storeIterator) WaitForNext() bool {
 
 func NewStoreIterator(
 	m StoreManager,
-	starts map[StoreId]core.Version,
+	start core.Version,
 ) *storeIterator {
-
-	positions := make(map[StoreId]core.Version)
-	for id, v := range starts {
-		positions[id] = v
-	}
 
 	iterator := &storeIterator{
 		m:           m,
-		positions:   sync.Map{},
+		position:    start,
 		closeSignal: make(chan struct{}),
-		ch:          make(chan StoreEvent),
-	}
-
-	for id, v := range positions {
-		iterator.positions.Store(id, v)
+		ch:          make(chan Event),
 	}
 
 	go iterator.iterate()
@@ -69,14 +57,13 @@ func (i *storeIterator) iterate() {
 
 	i.pacer = time.NewTicker(5 * time.Second)
 
-	sub := i.m.OnCommit(func(s SubStore, events []core.Event) {
+	sub := i.m.OnCommit(func(s SubStore, events []Event) {
 		continueSignal <- struct{}{}
 	})
 	defer sub.Unsubscribe()
 
 	for {
-		var foundAny atomic.Bool
-		var wg sync.WaitGroup
+		var foundAny bool
 
 		// Drain the continue signal channel
 	drain:
@@ -88,42 +75,19 @@ func (i *storeIterator) iterate() {
 			}
 		}
 
-		for store := range i.m.List(map[string]string{}) {
-			id := store.Id()
-			start := core.Version(0)
-			if v, ok := i.positions.Load(id); ok {
-				start = v.(core.Version)
-			}
-
-			wg.Add(1)
-			// Start a goroutine for each store
-			go func() {
-				defer wg.Done()
-
-				iter, err := store.All(start)
-				if err != nil {
-					return
-				}
-
-				for event := range iter {
-					i.ch <- StoreEvent{
-						StoreId:       id,
-						StoreMetadata: store.Metadata(),
-						Event:         event,
-					}
-					foundAny.Store(true)
-
-					i.positions.Store(id, event.GlobalVersion)
-				}
-				slog.Info("store iterator done", slog.Any("store", id))
-			}()
+		iter, err := i.m.All(i.position)
+		if err != nil {
+			return
 		}
 
-		// Wait for all goroutines to finish
-		wg.Wait()
+		for e := range iter {
+			i.ch <- e
+			i.position = e.FluxVersion
+			foundAny = true
+		}
 
 		// If events were found, continue to the next iteration
-		if foundAny.Load() {
+		if foundAny {
 			continue
 		}
 

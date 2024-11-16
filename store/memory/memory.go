@@ -2,6 +2,7 @@ package memory
 
 import (
 	"iter"
+	"sync"
 
 	"github.com/hallgren/eventsourcing/core"
 
@@ -9,14 +10,53 @@ import (
 )
 
 type InMemoryStoreManager struct {
-	stores      map[fluxcore.StoreId]*InMemorySubStore
-	onCommitCbs []func(fluxcore.SubStore, []core.Event)
+	stores          map[fluxcore.StoreId]*InMemorySubStore
+	onCommitCbs     []func(fluxcore.SubStore, []fluxcore.Event)
+	fluxStore       []fluxcore.Event
+	nextFluxVersion core.Version
+
+	transactionLock sync.Mutex
+}
+
+type transaction struct {
+	manager   *InMemoryStoreManager
+	before    core.Version
+	didCommit bool
+}
+
+func (t *transaction) Commit() {
+	t.didCommit = true
+	t.manager.transactionLock.Unlock()
+}
+
+func (t *transaction) Rollback() {
+	if t.didCommit {
+		return
+	}
+	t.manager.nextFluxVersion = t.before
+	t.manager.transactionLock.Unlock()
+}
+
+func (t *transaction) NextFluxVersion() core.Version {
+	v := t.manager.nextFluxVersion
+	t.manager.nextFluxVersion++
+	return v
 }
 
 func NewInMemoryStoreManager() *InMemoryStoreManager {
 	return &InMemoryStoreManager{
-		stores:      make(map[fluxcore.StoreId]*InMemorySubStore),
-		onCommitCbs: make([]func(fluxcore.SubStore, []core.Event), 0),
+		stores:          make(map[fluxcore.StoreId]*InMemorySubStore),
+		onCommitCbs:     make([]func(fluxcore.SubStore, []fluxcore.Event), 0),
+		fluxStore:       make([]fluxcore.Event, 0),
+		nextFluxVersion: 1,
+	}
+}
+
+func (m *InMemoryStoreManager) Tx() *transaction {
+	m.transactionLock.Lock()
+	return &transaction{
+		manager: m,
+		before:  m.nextFluxVersion,
 	}
 }
 
@@ -59,7 +99,7 @@ func (m *InMemoryStoreManager) Create(id fluxcore.StoreId, metadata map[string]s
 	return store, nil
 }
 
-func (m *InMemoryStoreManager) OnCommit(cb func(fluxcore.SubStore, []core.Event)) fluxcore.Unsubscriber {
+func (m *InMemoryStoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Event)) fluxcore.Unsubscriber {
 	m.onCommitCbs = append(m.onCommitCbs, cb)
 	return fluxcore.UnsubscribeFunc(func() error {
 		for i, c := range m.onCommitCbs {
@@ -72,31 +112,21 @@ func (m *InMemoryStoreManager) OnCommit(cb func(fluxcore.SubStore, []core.Event)
 	})
 }
 
-func (m *InMemoryStoreManager) commited(s fluxcore.SubStore, events []core.Event) error {
+func (m *InMemoryStoreManager) commited(s fluxcore.SubStore, events []fluxcore.Event) error {
+	m.fluxStore = append(m.fluxStore, events...)
+
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}
 	return nil
 }
 
-func (m *InMemoryStoreManager) All(starts map[fluxcore.StoreId]core.Version) (iter.Seq[fluxcore.StoreEvent], error) {
-	return func(yield func(fluxcore.StoreEvent) bool) {
-		for _, store := range m.stores {
-			pos, ok := starts[store.id]
-			if !ok {
-				pos = 0
-			}
-
-			iter, _ := store.All(pos)
-			for e := range iter {
-				if !yield(fluxcore.StoreEvent{
-					StoreId: store.id,
-					Event:   e,
-				}) {
-					return
-				}
+func (m *InMemoryStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
+	return func(yield func(fluxcore.Event) bool) {
+		for _, store := range m.fluxStore[start:] {
+			if !yield(store) {
+				return
 			}
 		}
-
 	}, nil
 }

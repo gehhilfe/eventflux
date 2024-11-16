@@ -47,8 +47,8 @@ type StoreManager interface {
 	List(metadata map[string]string) iter.Seq[SubStore]
 	Create(id StoreId, metadata map[string]string) (SubStore, error)
 	Get(id StoreId) (SubStore, error)
-	OnCommit(handler func(SubStore, []core.Event)) Unsubscriber
-	All(starts map[StoreId]core.Version) (iter.Seq[StoreEvent], error)
+	OnCommit(handler func(SubStore, []Event)) Unsubscriber
+	All(start core.Version) (iter.Seq[Event], error)
 }
 
 type SubStore interface {
@@ -64,14 +64,8 @@ type SubStore interface {
 	UpdateMetadata(metadata map[string]string) error
 }
 
-type StoreEvent struct {
-	StoreId       StoreId
-	StoreMetadata map[string]string
-	core.Event
-}
-
 type StoreIterator interface {
 	Close()
 	WaitForNext() bool
-	Value() StoreEvent
+	Value() Event
 }

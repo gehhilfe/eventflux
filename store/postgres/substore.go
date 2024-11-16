@@ -135,12 +135,13 @@ func (s *subStore) Save(events []core.Event) error {
 	}
 	defer tx.Rollback()
 
+	fluxEvents := make([]fluxcore.Event, len(events))
 	for i, e := range events {
 		err := func() error {
 			res, err := tx.Query(`
 				INSERT INTO events (store_id, aggregate_id, aggregate_type, version, reason, data, metadata, created_at)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				RETURNING global_version;
+				RETURNING id, global_version;
 			`, s.storeId.String(), e.AggregateID, e.AggregateType, e.Version, e.Reason, e.Data, e.Metadata, e.Timestamp)
 			if err != nil {
 				return err
@@ -148,14 +149,21 @@ func (s *subStore) Save(events []core.Event) error {
 			defer res.Close()
 
 			var globalVersion core.Version
+			var fluxVersion core.Version
 			if res.Next() {
-				err = res.Scan(&globalVersion)
+				err = res.Scan(&fluxVersion, &globalVersion)
 				if err != nil {
 					return err
 				}
 			}
 
 			events[i].GlobalVersion = globalVersion
+			fluxEvents[i] = fluxcore.Event{
+				StoreId:       s.storeId,
+				StoreMetadata: s.metadata,
+				FluxVersion:   fluxVersion,
+				Event:         events[i],
+			}
 			return nil
 		}()
 		if err != nil {
@@ -168,7 +176,7 @@ func (s *subStore) Save(events []core.Event) error {
 		return err
 	}
 
-	s.manager.commited(s, events)
+	s.manager.commited(s, fluxEvents)
 	return nil
 }
 
