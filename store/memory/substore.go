@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"sync"
 	"sync/atomic"
 
 	"github.com/hallgren/eventsourcing/core"
@@ -18,6 +19,8 @@ type aggregateBucket struct {
 }
 
 type InMemorySubStore struct {
+	lock sync.Mutex
+
 	manager *InMemoryStoreManager
 
 	id       fluxcore.StoreId
@@ -38,6 +41,9 @@ func (s *InMemorySubStore) Metadata() map[string]string {
 }
 
 func (s *InMemorySubStore) Save(events []core.Event) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if len(events) == 0 {
 		return nil
 	}
@@ -61,6 +67,10 @@ func (s *InMemorySubStore) Save(events []core.Event) error {
 	for i, event := range events {
 		globalVersion := curGlobalVersion + core.Version(i+1)
 		bucketVersion := curBucketVersion + core.Version(i+1)
+
+		if event.Version != bucketVersion {
+			return core.ErrConcurrency
+		}
 
 		event.GlobalVersion = globalVersion
 		event.Version = bucketVersion
@@ -106,6 +116,9 @@ func (s *InMemorySubStore) All(start core.Version) (iter.Seq[core.Event], error)
 }
 
 func (s *InMemorySubStore) Append(event core.Event) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	nextGlobalVersion := core.Version(s.globalVersion.Load() + 1)
 
 	if event.GlobalVersion < nextGlobalVersion {
