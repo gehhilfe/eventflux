@@ -169,14 +169,17 @@ func (s *InMemorySubStore) Append(event core.Event) error {
 	defer tx.Rollback()
 
 	fluxEvent := fluxcore.Event{
-		FluxVersion: tx.NextFluxVersion(),
-		Event:       event,
+		FluxVersion:   tx.NextFluxVersion(),
+		StoreId:       s.id,
+		StoreMetadata: s.metadata,
+		Event:         event,
 	}
 
 	bucket.events = append(bucket.events, fluxEvent)
 	s.globalEvents = append(s.globalEvents, fluxEvent)
 	s.globalVersion.Store(uint64(event.GlobalVersion))
 
+	s.manager.fluxStore = append(s.manager.fluxStore, fluxEvent)
 	tx.Commit()
 	return nil
 }
