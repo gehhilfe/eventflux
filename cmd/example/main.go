@@ -14,6 +14,7 @@ import (
 	"github.com/gehhilfe/eventflux/bus"
 	"github.com/gehhilfe/eventflux/cmd/example/api"
 	"github.com/gehhilfe/eventflux/cmd/example/model"
+	"github.com/gehhilfe/eventflux/cmd/example/projection"
 	"github.com/gehhilfe/eventflux/core"
 	"github.com/gehhilfe/eventflux/store/memory"
 	"github.com/gehhilfe/eventflux/store/postgres"
@@ -49,7 +50,6 @@ func main() {
 		sm, _ = postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/test?sslmode=disable")
 	}
 
-	//eventStoreManager := memory.NewInMemoryStoreManager()
 	mb := bus.NewCoreNatsMessageBus(nc, "")
 
 	stores, err := eventflux.NewStores(sm, mb)
@@ -63,9 +63,23 @@ func main() {
 	repo := eventsourcing.NewEventRepository(eventStore)
 	repo.Register(&model.NotificationAggregate{})
 
+	// Create projections
+	reg := eventsourcing.NewRegister()
+	reg.Register(&model.NotificationAggregate{})
+	notificationOverview := projection.NewNotificationOverview(sm, reg)
+	go notificationOverview.Project()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /notification", api.CreateNotificationHandler(repo))
 	mux.HandleFunc("POST /notification/{id}/read", api.MarkNotificationAsReadHandler(repo))
+	mux.HandleFunc("GET /notification/overview", api.ListRecentNotificationsHandler(notificationOverview))
+	mux.HandleFunc("GET /notification/sse", api.StreamNotificationsHandler(sm))
+	mux.HandleFunc("OPTIONS /notification/sse", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Context from signal
 	sigIntCh := make(chan os.Signal, 1)

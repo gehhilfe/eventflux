@@ -79,7 +79,7 @@ func NewStores(
 
 	stores.localStore = localStore
 
-	stores.manager.OnCommit(func(s fluxcore.SubStore, e []core.Event) {
+	stores.manager.OnCommit(func(s fluxcore.SubStore, e []fluxcore.Event) {
 		if s.Id() == stores.localStore.Id() {
 			stores.onCommitLocal(e)
 		}
@@ -285,11 +285,11 @@ func (s *Stores) LocalStore() fluxcore.SubStore {
 	return s.localStore
 }
 
-func (s *Stores) onCommitLocal(events []core.Event) {
+func (s *Stores) onCommitLocal(events []fluxcore.Event) {
 	for _, e := range events {
 		s.bus.Publish(&MessageCommitedEvent{
 			MessageBaseEvent: FromSubStore(s.localStore),
-			Event:            e,
+			Event:            e.Event,
 		})
 	}
 }

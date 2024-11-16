@@ -5,11 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Package",
+            "name": "Launch Example 8080",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/example/main.go",
+            "args": [
+                "--port",
+                "8080",
+            ]
+        }, 
+        {
+            "name": "Launch Example 9090",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/example/main.go",
+            "args": [
+                "--port",
+                "9090",
+            ]
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Launch All",
+            "configurations": ["Launch Example 8080", "Launch Example 9090"]
         }
     ]
 }

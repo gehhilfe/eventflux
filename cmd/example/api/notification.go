@@ -2,10 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gehhilfe/eventflux/cmd/example/model"
+	"github.com/gehhilfe/eventflux/cmd/example/projection"
+	fluxcore "github.com/gehhilfe/eventflux/core"
 	"github.com/hallgren/eventsourcing"
+	"github.com/hallgren/eventsourcing/core"
 )
 
 type createNotificationDto struct {
@@ -65,6 +69,19 @@ func CreateNotificationHandler(repo *eventsourcing.EventRepository) func(w http.
 	}
 }
 
+func ListRecentNotificationsHandler(no *projection.NotificationOverview) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		recentNotifications := no.RecentNotifications()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(recentNotifications)
+	}
+}
+
 func MarkNotificationAsReadHandler(repo *eventsourcing.EventRepository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -93,5 +110,52 @@ func MarkNotificationAsReadHandler(repo *eventsourcing.EventRepository) func(w h
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func StreamNotificationsHandler(sm fluxcore.StoreManager) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var startVersion core.Version
+		// Get the last version from the query parameter
+		if v := r.URL.Query().Get("start"); v != "" {
+			_, err := fmt.Sscan(v, &startVersion)
+			if err != nil {
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+		}
+
+		iterator := fluxcore.NewStoreIterator(sm, startVersion)
+		defer iterator.Close()
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		encoder := json.NewEncoder(w)
+
+		for iterator.WaitForNext() {
+			// Check if the connection is still open
+			select {
+			case <-r.Context().Done():
+				return
+			default:
+			}
+
+			event := iterator.Value()
+
+			fmt.Fprint(w, "data: ")
+			encoder.Encode(event)
+			fmt.Fprint(w, "\n") // Only one newline is needed, because the encoder already adds one
+			w.(http.Flusher).Flush()
+		}
 	}
 }
