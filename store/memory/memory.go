@@ -123,8 +123,11 @@ func (m *InMemoryStoreManager) commited(s fluxcore.SubStore, events []fluxcore.E
 
 func (m *InMemoryStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
 	return func(yield func(fluxcore.Event) bool) {
-		for _, store := range m.fluxStore[start:] {
-			if !yield(store) {
+		if start >= core.Version(len(m.fluxStore)) {
+			return
+		}
+		for _, event := range m.fluxStore[start:] {
+			if !yield(event) {
 				return
 			}
 		}
