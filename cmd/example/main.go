@@ -16,6 +16,7 @@ import (
 	"github.com/gehhilfe/eventflux/cmd/example/model"
 	"github.com/gehhilfe/eventflux/cmd/example/projection"
 	"github.com/gehhilfe/eventflux/core"
+	"github.com/gehhilfe/eventflux/store/bolt"
 	"github.com/gehhilfe/eventflux/store/memory"
 	"github.com/gehhilfe/eventflux/store/postgres"
 	"github.com/hallgren/eventsourcing"
@@ -46,6 +47,8 @@ func main() {
 	var sm core.StoreManager
 	if *store == "memory" {
 		sm = memory.NewInMemoryStoreManager()
+	} else if *store == "bolt" {
+		sm, _ = bolt.NewBoltStoreManager("test.db")
 	} else {
 		sm, _ = postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/test?sslmode=disable")
 	}
