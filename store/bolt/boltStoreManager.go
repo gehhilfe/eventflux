@@ -175,7 +175,7 @@ func (m *BoltStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], er
 
 		lookup := map[string]map[string]string{}
 
-		for k, digest := cursor.Seek(itob(uint64(start))); k != nil; k, digest = cursor.Next() {
+		for k, digest := cursor.Seek(itob(uint64(start + 1))); k != nil; k, digest = cursor.Next() {
 			data := dataBucket.Get(digest)
 			if data == nil {
 				return
