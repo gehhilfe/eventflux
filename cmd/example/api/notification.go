@@ -28,14 +28,6 @@ func (d *createNotificationDto) IsValid() error {
 	return nil
 }
 
-type invalidFieldError struct {
-	field string
-}
-
-func (e *invalidFieldError) Error() string {
-	return "Invalid field: " + e.field
-}
-
 func CreateNotificationHandler(repo *eventsourcing.EventRepository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
