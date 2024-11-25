@@ -291,20 +291,13 @@ func (m *StoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 
 	var pgId uint64
 	var storeId fluxcore.StoreId
-	var metadata map[string]string
+	var metadata fluxcore.Metadata
 
 	if res.Next() {
-		var storeIdStr string
-		var metadataStr string
-		err = res.Scan(&pgId, &storeIdStr, &metadataStr)
+		err = res.Scan(&pgId, &storeId, &metadata)
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal([]byte(metadataStr), &metadata)
-		if err != nil {
-			return nil, err
-		}
-		storeId = fluxcore.StoreId(uuid.MustParse(storeIdStr))
 
 		return &subStore{
 			manager:  m,
@@ -369,10 +362,11 @@ func (m *StoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Event)) fl
 
 func (m *StoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
 	res, err := m.db.Query(`
-			SELECT id, aggregate_id, version, global_version, aggregate_type, created_at, reason, data, metadata
+			SELECT events.id, events.store_id, events.aggregate_id, events.version, events.global_version, events.aggregate_type, events.created_at, events.reason, events.data, events.metadata, stores.metadata
 			FROM events
-			WHERE id > $1
-			ORDER BY id ASC;
+			INNER JOIN stores ON events.store_id = stores.store_id
+			WHERE events.id > $1
+			ORDER BY events.id ASC;
 		`, start)
 	if err != nil {
 		return nil, err
@@ -382,7 +376,7 @@ func (m *StoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error)
 
 		for res.Next() {
 			var e fluxcore.Event
-			err := res.Scan(&e.FluxVersion, &e.AggregateID, &e.Version, &e.GlobalVersion, &e.AggregateType, &e.Timestamp, &e.Reason, &e.Data, &e.Metadata)
+			err := res.Scan(&e.FluxVersion, &e.StoreId, &e.AggregateID, &e.Version, &e.GlobalVersion, &e.AggregateType, &e.Timestamp, &e.Reason, &e.Data, &e.Metadata, &e.StoreMetadata)
 			if err != nil {
 				return
 			}

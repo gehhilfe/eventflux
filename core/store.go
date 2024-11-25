@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
@@ -24,8 +25,27 @@ func (id *StoreId) UnmarshalText(data []byte) error {
 	return nil
 }
 
+func (id *StoreId) Scan(src any) error {
+	var u uuid.UUID
+	if err := u.Scan(src); err != nil {
+		return err
+	}
+	*id = StoreId(u)
+	return nil
+}
+
 func (id StoreId) String() string {
 	return uuid.UUID(id).String()
+}
+
+type Metadata map[string]string
+
+func (m *Metadata) Scan(src any) error {
+	data, ok := src.([]uint8)
+	if !ok {
+		return errors.New("invalid data type for Metadata")
+	}
+	return json.Unmarshal(data, m)
 }
 
 var (

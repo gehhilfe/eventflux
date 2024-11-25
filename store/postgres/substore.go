@@ -17,7 +17,7 @@ type subStore struct {
 	manager  *StoreManager
 	pgId     uint64
 	storeId  fluxcore.StoreId
-	metadata map[string]string
+	metadata fluxcore.Metadata
 }
 
 func (s *subStore) Id() fluxcore.StoreId {
