@@ -58,7 +58,7 @@ func NewBoltStoreManager(path string) (*BoltStoreManager, error) {
 	}, nil
 }
 
-func (m *BoltStoreManager) List(metadata map[string]string) iter.Seq[fluxcore.SubStore] {
+func (m *BoltStoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubStore] {
 	return func(yield func(fluxcore.SubStore) bool) {
 		m.db.View(func(tx *bbolt.Tx) error {
 			b := tx.Bucket([]byte(globalStoreBucketName))
@@ -70,7 +70,7 @@ func (m *BoltStoreManager) List(metadata map[string]string) iter.Seq[fluxcore.Su
 				if err != nil {
 					return err
 				}
-				loadedMetadata := make(map[string]string)
+				loadedMetadata := make(fluxcore.Metadata)
 				err = json.Unmarshal(v, &loadedMetadata)
 				if err != nil {
 					return err
@@ -98,7 +98,7 @@ func (m *BoltStoreManager) List(metadata map[string]string) iter.Seq[fluxcore.Su
 	}
 }
 
-func (m *BoltStoreManager) Create(id fluxcore.StoreId, metadata map[string]string) (fluxcore.SubStore, error) {
+func (m *BoltStoreManager) Create(id fluxcore.StoreId, metadata fluxcore.Metadata) (fluxcore.SubStore, error) {
 	err := m.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(globalStoreBucketName))
 		data, err := json.Marshal(metadata)

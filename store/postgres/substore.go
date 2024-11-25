@@ -120,7 +120,7 @@ func (s *subStore) LastVersion() core.Version {
 	return version
 }
 
-func (s *subStore) Metadata() map[string]string {
+func (s *subStore) Metadata() fluxcore.Metadata {
 	return s.metadata
 }
 

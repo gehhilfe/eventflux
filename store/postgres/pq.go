@@ -239,7 +239,7 @@ END $$;
 	return m, nil
 }
 
-func (m *StoreManager) List(metadata map[string]string) iter.Seq[fluxcore.SubStore] {
+func (m *StoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubStore] {
 	metadataStr, _ := json.Marshal(metadata)
 
 	return func(yield func(fluxcore.SubStore) bool) {
@@ -311,7 +311,7 @@ func (m *StoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 	}
 }
 
-func (m *StoreManager) Create(id fluxcore.StoreId, metadata map[string]string) (fluxcore.SubStore, error) {
+func (m *StoreManager) Create(id fluxcore.StoreId, metadata fluxcore.Metadata) (fluxcore.SubStore, error) {
 	metadataJson, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err

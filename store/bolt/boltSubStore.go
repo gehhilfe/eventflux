@@ -33,14 +33,14 @@ type BoltSubStore struct {
 	manager  *BoltStoreManager
 	db       *bbolt.DB
 	id       fluxcore.StoreId
-	metadata map[string]string
+	metadata fluxcore.Metadata
 }
 
 func (s *BoltSubStore) Id() fluxcore.StoreId {
 	return s.id
 }
 
-func (s *BoltSubStore) Metadata() map[string]string {
+func (s *BoltSubStore) Metadata() fluxcore.Metadata {
 	return s.metadata
 }
 

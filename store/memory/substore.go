@@ -24,7 +24,7 @@ type InMemorySubStore struct {
 	manager *InMemoryStoreManager
 
 	id       fluxcore.StoreId
-	metadata map[string]string
+	metadata fluxcore.Metadata
 
 	aggregates map[string]*aggregateBucket
 
@@ -36,7 +36,7 @@ func (s *InMemorySubStore) Id() fluxcore.StoreId {
 	return s.id
 }
 
-func (s *InMemorySubStore) Metadata() map[string]string {
+func (s *InMemorySubStore) Metadata() fluxcore.Metadata {
 	return s.metadata
 }
 

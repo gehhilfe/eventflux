@@ -64,17 +64,17 @@ func (e *EventOutOfOrderError) Error() string {
 }
 
 type StoreManager interface {
-	List(metadata map[string]string) iter.Seq[SubStore]
-	Create(id StoreId, metadata map[string]string) (SubStore, error)
+	List(metadata Metadata) iter.Seq[SubStore]
+	Create(id StoreId, metadata Metadata) (SubStore, error)
 	Get(id StoreId) (SubStore, error)
 	OnCommit(handler func(SubStore, []Event)) Unsubscriber
-	All(start core.Version) (iter.Seq[Event], error)
+	All(fluxVersion core.Version) (iter.Seq[Event], error)
 }
 
 type SubStore interface {
 	core.EventStore
 	Id() StoreId
-	Metadata() map[string]string
+	Metadata() Metadata
 	// start is the non inclusive version to start from
 	All(start core.Version) (iter.Seq[core.Event], error)
 	Append(event core.Event) error

@@ -60,7 +60,7 @@ func (m *InMemoryStoreManager) Tx() *transaction {
 	}
 }
 
-func (m *InMemoryStoreManager) List(metadata map[string]string) iter.Seq[fluxcore.SubStore] {
+func (m *InMemoryStoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubStore] {
 	return func(yield func(fluxcore.SubStore) bool) {
 		for _, store := range m.stores {
 			for k, v := range metadata {
@@ -83,7 +83,7 @@ func (m *InMemoryStoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, erro
 	return store, nil
 }
 
-func (m *InMemoryStoreManager) Create(id fluxcore.StoreId, metadata map[string]string) (fluxcore.SubStore, error) {
+func (m *InMemoryStoreManager) Create(id fluxcore.StoreId, metadata fluxcore.Metadata) (fluxcore.SubStore, error) {
 	if s, ok := m.stores[id]; ok {
 		return s, nil
 	}
