@@ -65,18 +65,13 @@ func main() {
 
 	repo := eventsourcing.NewEventRepository(eventStore)
 	repo.Register(&model.NotificationAggregate{})
-	repo.Register(&model.CategoryAggregate{})
 
 	// Create projections
 	reg := eventsourcing.NewRegister()
 	reg.Register(&model.NotificationAggregate{})
-	reg.Register(&model.CategoryAggregate{})
 
 	notificationOverview := projection.NewNotificationOverview(sm, reg)
 	go notificationOverview.Project()
-
-	categoryLookup := projection.NewCategoryLookupProject(sm, reg)
-	go categoryLookup.Project()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /notification", api.CreateNotificationHandler(repo))
@@ -89,9 +84,6 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		w.WriteHeader(http.StatusOK)
 	})
-
-	mux.HandleFunc("POST /category", api.CreateCategoryHandler(repo))
-	mux.HandleFunc("GET /category", api.ListCategoriesHandler(categoryLookup))
 
 	// Context from signal
 	sigIntCh := make(chan os.Signal, 1)
