@@ -15,10 +15,8 @@ import (
 	"github.com/gehhilfe/eventflux/cmd/example/api"
 	"github.com/gehhilfe/eventflux/cmd/example/model"
 	"github.com/gehhilfe/eventflux/cmd/example/projection"
-	"github.com/gehhilfe/eventflux/core"
-	"github.com/gehhilfe/eventflux/store/bolt"
-	"github.com/gehhilfe/eventflux/store/memory"
 	"github.com/gehhilfe/eventflux/store/postgres"
+	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing"
 	"github.com/nats-io/nats.go"
 )
@@ -30,6 +28,9 @@ var (
 )
 
 func main() {
+
+	eventsourcing.SetIDFunc(uuid.NewString)
+
 	flag.Parse()
 
 	// Create NATS connection
@@ -44,14 +45,14 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	var sm core.StoreManager
-	if *store == "memory" {
-		sm = memory.NewInMemoryStoreManager()
-	} else if *store == "bolt" {
-		sm, _ = bolt.NewBoltStoreManager("test.db")
-	} else {
-		sm, _ = postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/test?sslmode=disable")
-	}
+	//var sm core.StoreManager
+	//if *store == "memory" {
+	//	sm = memory.NewInMemoryStoreManager()
+	//} else if *store == "bolt" {
+	//	sm, _ = bolt.NewBoltStoreManager("test.db")
+	//} else {
+	sm, _ := postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
+	//}
 
 	mb := bus.NewCoreNatsMessageBus(nc, "")
 
@@ -72,6 +73,9 @@ func main() {
 
 	notificationOverview := projection.NewNotificationOverview(sm, reg)
 	go notificationOverview.Project()
+
+	notificationView := projection.NewNotificationView(sm.DB(), sm, reg)
+	go notificationView.Project()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /notification", api.CreateNotificationHandler(repo))

@@ -20,6 +20,10 @@ type StoreManager struct {
 	onCommitCbs []func(fluxcore.SubStore, []fluxcore.Event)
 }
 
+func (sm *StoreManager) DB() *sql.DB {
+	return sm.db
+}
+
 func NewStoreManager(
 	uri string,
 ) (*StoreManager, error) {
