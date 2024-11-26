@@ -15,7 +15,8 @@ import (
 	"github.com/gehhilfe/eventflux/cmd/example/api"
 	"github.com/gehhilfe/eventflux/cmd/example/model"
 	"github.com/gehhilfe/eventflux/cmd/example/projection"
-	"github.com/gehhilfe/eventflux/store/postgres"
+	"github.com/gehhilfe/eventflux/core"
+	"github.com/gehhilfe/eventflux/store/memory"
 	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing"
 	"github.com/nats-io/nats.go"
@@ -45,24 +46,35 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	//var sm core.StoreManager
+	var sm core.StoreManager
 	//if *store == "memory" {
-	//	sm = memory.NewInMemoryStoreManager()
+	sm = memory.NewInMemoryStoreManager()
 	//} else if *store == "bolt" {
 	//	sm, _ = bolt.NewBoltStoreManager("test.db")
 	//} else {
-	sm, _ := postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
+	//sm, _ := postgres.NewStoreManager("postgres://postgres:admin@localhost:5432/postgres?sslmode=disable")
 	//}
 
 	mb := bus.NewCoreNatsMessageBus(nc, "")
 
-	stores, err := eventflux.NewStores(sm, mb)
+	_, err = eventflux.NewStores(sm, mb)
 	if err != nil {
 		slog.Error("Failed to create stores", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-	eventStore := stores.LocalStore()
+	var eventStore core.SubStore
+	for s := range sm.List(core.Metadata{"type": "local"}) {
+		eventStore = s
+		break
+	}
+	if eventStore == nil {
+		eventStore, err = sm.Create(core.StoreId(uuid.New()), map[string]string{"type": "local"})
+		if err != nil {
+			slog.Error("Failed to create event store", slog.Any("error", err))
+			os.Exit(1)
+		}
+	}
 
 	repo := eventsourcing.NewEventRepository(eventStore)
 	repo.Register(&model.NotificationAggregate{})
@@ -74,8 +86,8 @@ func main() {
 	notificationOverview := projection.NewNotificationOverview(sm, reg)
 	go notificationOverview.Project()
 
-	notificationView := projection.NewNotificationView(sm.DB(), sm, reg)
-	go notificationView.Project()
+	//notificationView := projection.NewNotificationView(sm.DB(), sm, reg)
+	//go notificationView.Project()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /notification", api.CreateNotificationHandler(repo))

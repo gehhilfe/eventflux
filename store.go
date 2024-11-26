@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"os"
-	"runtime"
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing/core"
 
 	"github.com/gehhilfe/eventflux/bus"
@@ -21,19 +18,10 @@ type Stores struct {
 	manager fluxcore.StoreManager
 	bus     *typedMessageBus
 
-	logger     *slog.Logger
-	localStore fluxcore.SubStore
+	logger *slog.Logger
 }
 
 type Option func(*Stores)
-
-func hostnameWithDefault(def string) string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return def
-	}
-	return hostname
-}
 
 func NewStores(
 	manager fluxcore.StoreManager,
@@ -50,48 +38,26 @@ func NewStores(
 		opt(stores)
 	}
 
-	// First check if already a local store exists
-	var err error
-	var localStore fluxcore.SubStore
-	for s := range manager.List(map[string]string{
-		"type": "local",
-	}) {
-		localStore = s
-		break
-	}
-
-	if localStore == nil {
-		stores.logger.Info("no local store found, creating a new one")
-		// Create a new local store
-		id := uuid.New()
-		localStore, err = manager.Create(fluxcore.StoreId(id), map[string]string{
-			"type":      "local",
-			"createdAt": time.Now().Format(time.RFC3339),
-			"hostname":  hostnameWithDefault("unknown"),
-			"os":        runtime.GOOS,
-			"arch":      runtime.GOARCH,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create local store: %w", err)
-		}
-		stores.logger.Info("local store created", slog.Any("id", localStore.Id()))
-	}
-
-	stores.localStore = localStore
-
-	stores.manager.OnCommit(func(s fluxcore.SubStore, e []fluxcore.Event) {
-		if s.Id() == stores.localStore.Id() {
-			stores.onCommitLocal(e)
+	stores.manager.OnCommit(func(s fluxcore.SubStore, events []fluxcore.Event) {
+		if v, ok := s.Metadata()["type"]; ok && v == "local" {
+			for _, e := range events {
+				stores.bus.Publish(&MessageCommitedEvent{
+					MessageBaseEvent: FromSubStore(s),
+					Event:            e.Event,
+				})
+			}
 		}
 	})
 
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		for range t.C {
-			stores.bus.Publish(&MessageHeartBeat{
-				MessageBaseEvent: FromSubStore(stores.localStore),
-				LastVersion:      stores.localStore.LastVersion(),
-			})
+			for s := range stores.manager.List(fluxcore.Metadata{"type": "local"}) {
+				stores.bus.Publish(&MessageHeartBeat{
+					MessageBaseEvent: FromSubStore(s),
+					LastVersion:      s.LastVersion(),
+				})
+			}
 		}
 	}()
 
@@ -279,19 +245,6 @@ func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
 	}
 
 	return nil
-}
-
-func (s *Stores) LocalStore() fluxcore.SubStore {
-	return s.localStore
-}
-
-func (s *Stores) onCommitLocal(events []fluxcore.Event) {
-	for _, e := range events {
-		s.bus.Publish(&MessageCommitedEvent{
-			MessageBaseEvent: FromSubStore(s.localStore),
-			Event:            e.Event,
-		})
-	}
 }
 
 func WithLogger(logger *slog.Logger) Option {
