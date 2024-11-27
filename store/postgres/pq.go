@@ -15,9 +15,7 @@ import (
 )
 
 type StoreManager struct {
-	db *sql.DB
-
-	localStore  fluxcore.SubStore
+	db          *sql.DB
 	onCommitCbs []func(fluxcore.SubStore, []core.Event)
 }
 
@@ -195,46 +193,9 @@ END $$;
 		return nil, fmt.Errorf("failed to create or replace trigger set_global_version: %w", err)
 	}
 
-	// Lookup local store
-	res, err := tx.Query(`
-		SELECT id, store_id FROM stores WHERE metadata->>'type' = 'local' LIMIT 1;
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query local store: %w", err)
-	}
-	defer res.Close()
-
-	var id int
-	var localStoreId fluxcore.StoreId
-	if res.Next() {
-		var storeIdStr string
-		err = res.Scan(&id, &storeIdStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan local store: %w", err)
-		}
-		localStoreId = fluxcore.StoreId(uuid.MustParse(storeIdStr))
-	} else {
-		localStoreId = fluxcore.StoreId(uuid.New())
-		// Create local store
-		res, err = tx.Query(`
-			INSERT INTO stores (store_id, metadata)
-			VALUES ($1, $2)
-			RETURNING id;
-		`, localStoreId.String(), `{"type": "local"}`)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create local store: %w", err)
-		}
-		defer res.Close()
-	}
-
 	// Setup complete
 	if tx.Commit() != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	m.localStore, err = m.Get(localStoreId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get local store: %w", err)
 	}
 
 	return m, nil
