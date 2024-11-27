@@ -24,7 +24,8 @@ func TestEarlyResyncResponse(t *testing.T) {
 		mb,
 	)
 
-	a.localStore.Append(core.Event{
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+	localStore.Append(core.Event{
 		AggregateID:   "1",
 		Version:       1,
 		GlobalVersion: 1,
@@ -61,7 +62,7 @@ func TestEarlyResyncResponse(t *testing.T) {
 	wg.Add(2)
 
 	typed.Publish(&MessageRequestResync{
-		MessageBaseEvent: FromSubStore(a.localStore),
+		MessageBaseEvent: FromSubStore(localStore),
 		From:             core.Version(0),
 	})
 
@@ -285,6 +286,8 @@ func TestCommittedSending(t *testing.T) {
 		mb,
 	)
 
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+
 	typed := NewTypedMessageBus(mb)
 
 	var wg sync.WaitGroup
@@ -305,7 +308,7 @@ func TestCommittedSending(t *testing.T) {
 	})
 	wg.Add(1)
 
-	a.localStore.Save([]core.Event{
+	localStore.Save([]core.Event{
 		{
 			AggregateID:   "1",
 			Version:       1,
@@ -332,6 +335,8 @@ func TestHBSending(t *testing.T) {
 		mb,
 	)
 
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+
 	typed := NewTypedMessageBus(mb)
 
 	var wg sync.WaitGroup
@@ -355,7 +360,7 @@ func TestHBSending(t *testing.T) {
 	})
 	wg.Add(1)
 
-	a.localStore.Save([]core.Event{
+	localStore.Save([]core.Event{
 		{
 			AggregateID:   "1",
 			Version:       1,
