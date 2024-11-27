@@ -1,6 +1,7 @@
 package projection
 
 import (
+	"context"
 	"encoding/json"
 	"slices"
 	"sync"
@@ -39,13 +40,8 @@ func NewNotificationOverview(
 	}
 }
 
-func (n *NotificationOverview) Project() {
-	iterator := fluxcore.NewStoreIterator(n.storeManager, 0)
-	defer iterator.Close()
-
-	for iterator.WaitForNext() {
-		event := iterator.Value()
-
+func (n *NotificationOverview) Project(ctx context.Context) {
+	for event := range fluxcore.Iterate(ctx, n.storeManager, 0) {
 		if event.AggregateType != "NotificationAggregate" {
 			continue
 		}

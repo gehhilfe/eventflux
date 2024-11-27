@@ -40,8 +40,9 @@ func main() {
 		cancel()
 	}()
 
-	// Logger
-	h := slogctx.NewHandler(slog.NewJSONHandler(os.Stdout, nil), nil)
+	h := slogctx.NewHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}), nil)
 	slog.SetDefault(slog.New(h))
 
 	// Store the logger inside the context:
@@ -102,7 +103,7 @@ func main() {
 	reg.Register(&model.NotificationAggregate{})
 
 	notificationOverview := projection.NewNotificationOverview(sm, reg)
-	go notificationOverview.Project()
+	go notificationOverview.Project(ctx)
 
 	//notificationView := projection.NewNotificationView(sm.DB(), sm, reg)
 	//go notificationView.Project()

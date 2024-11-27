@@ -1,14 +1,17 @@
 package projection
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/gehhilfe/eventflux/cmd/example/model"
 	fluxcore "github.com/gehhilfe/eventflux/core"
 	"github.com/hallgren/eventsourcing"
 	"github.com/hallgren/eventsourcing/core"
+	slogctx "github.com/veqryn/slog-context"
 )
 
 const (
@@ -47,7 +50,8 @@ func NewNotificationView(
 	}
 }
 
-func (v *NotificationView) Project() {
+func (v *NotificationView) Project(ctx context.Context) {
+	logger := slogctx.FromCtx(ctx)
 	// First create the table to track the state of this projection in the database.
 	_, err := v.db.Exec(`
 		CREATE TABLE IF NOT EXISTS projection_state (
@@ -56,7 +60,8 @@ func (v *NotificationView) Project() {
 		);
 	`)
 	if err != nil {
-		panic(err)
+		logger.Error("failed to create projection state table", slog.Any("error", err))
+		return
 	}
 
 	// Check if the projection state exists or init new state.
@@ -79,16 +84,12 @@ func (v *NotificationView) Project() {
 		);
 	`)
 	if err != nil {
-		panic(err)
+		logger.Error("failed to create notification view table", slog.Any("error", err))
+		return
 	}
 
 	// Start projecting the events from the current state
-	iterator := fluxcore.NewStoreIterator(v.storeManager, v.state.LastVersion)
-	defer iterator.Close()
-
-	for iterator.WaitForNext() {
-		event := iterator.Value()
-
+	for event := range fluxcore.Iterate(ctx, v.storeManager, v.state.LastVersion) {
 		if event.AggregateType != "NotificationAggregate" {
 			continue
 		}
@@ -144,7 +145,8 @@ func (v *NotificationView) Project() {
 			return tx.Commit()
 		}()
 		if err != nil {
-			panic(err)
+			logger.Error("failed to project event", slog.Any("error", err))
+			return
 		}
 	}
 }

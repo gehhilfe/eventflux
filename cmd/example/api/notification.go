@@ -122,9 +122,6 @@ func StreamNotificationsHandler(sm fluxcore.StoreManager) func(w http.ResponseWr
 			}
 		}
 
-		iterator := fluxcore.NewStoreIterator(sm, startVersion)
-		defer iterator.Close()
-
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
@@ -134,15 +131,19 @@ func StreamNotificationsHandler(sm fluxcore.StoreManager) func(w http.ResponseWr
 
 		encoder := json.NewEncoder(w)
 
-		for iterator.WaitForNext() {
+		for event, err := range fluxcore.Iterate(r.Context(), sm, startVersion) {
+			if err != nil {
+				fmt.Fprintf(w, "event: %s\n\n", err)
+				w.(http.Flusher).Flush()
+				return
+			}
+
 			// Check if the connection is still open
 			select {
 			case <-r.Context().Done():
 				return
 			default:
 			}
-
-			event := iterator.Value()
 
 			fmt.Fprint(w, "data: ")
 			encoder.Encode(event)
