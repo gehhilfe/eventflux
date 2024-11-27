@@ -1,6 +1,7 @@
 package eventflux
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"iter"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hallgren/eventsourcing/core"
+	slogctx "github.com/veqryn/slog-context"
 
 	"github.com/gehhilfe/eventflux/bus"
 	fluxcore "github.com/gehhilfe/eventflux/core"
@@ -24,14 +26,16 @@ type Stores struct {
 type Option func(*Stores)
 
 func NewStores(
+	ctx context.Context,
 	manager fluxcore.StoreManager,
 	mb fluxcore.MessageBus,
 	opts ...Option,
 ) (*Stores, error) {
+	logger := slogctx.FromCtx(ctx)
 	stores := &Stores{
-		logger:  slog.Default(),
+		logger:  logger,
 		manager: manager,
-		bus:     NewTypedMessageBus(bus.NewBusLogger(mb)),
+		bus:     NewTypedMessageBus(bus.NewBusLogger(logger, mb)),
 	}
 
 	for _, opt := range opts {
@@ -51,7 +55,14 @@ func NewStores(
 
 	go func() {
 		t := time.NewTicker(5 * time.Second)
+
 		for range t.C {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			for s := range stores.manager.List(fluxcore.Metadata{"type": "local"}) {
 				stores.bus.Publish(&MessageHeartBeat{
 					MessageBaseEvent: FromSubStore(s),

@@ -1,6 +1,7 @@
 package eventflux
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -18,8 +19,12 @@ func TestEarlyResyncResponse(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	a, _ := NewStores(
+		ctx,
 		smA,
 		mb,
 	)
@@ -74,8 +79,12 @@ func TestResyncSending(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	_, _ = NewStores(
+		ctx,
 		smA,
 		mb,
 	)
@@ -128,8 +137,12 @@ func TestResyncSendingDueToHeartBeat(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	_, _ = NewStores(
+		ctx,
 		smA,
 		mb,
 	)
@@ -173,8 +186,12 @@ func TestResyncSending2(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	_, _ = NewStores(
+		ctx,
 		smA,
 		mb,
 	)
@@ -280,8 +297,12 @@ func TestCommittedSending(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	a, _ := NewStores(
+		ctx,
 		smA,
 		mb,
 	)
@@ -329,8 +350,12 @@ func TestHBSending(t *testing.T) {
 
 	mb := bus.NewInMemoryMessageBus()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create store A
 	a, _ := NewStores(
+		ctx,
 		smA,
 		mb,
 	)

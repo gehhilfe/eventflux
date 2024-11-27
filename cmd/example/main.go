@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing"
 	"github.com/nats-io/nats.go"
+	slogctx "github.com/veqryn/slog-context"
 )
 
 var (
@@ -29,7 +30,24 @@ var (
 )
 
 func main() {
+	// Context from signal
+	sigIntCh := make(chan os.Signal, 1)
+	signal.Notify(sigIntCh, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-sigIntCh
+		slog.Info("Shutting down...")
+		cancel()
+	}()
 
+	// Logger
+	h := slogctx.NewHandler(slog.NewJSONHandler(os.Stdout, nil), nil)
+	slog.SetDefault(slog.New(h))
+
+	// Store the logger inside the context:
+	ctx = slogctx.NewCtx(ctx, slog.Default())
+
+	// Set ID function
 	eventsourcing.SetIDFunc(uuid.NewString)
 
 	flag.Parse()
@@ -57,7 +75,7 @@ func main() {
 
 	mb := bus.NewCoreNatsMessageBus(nc, "")
 
-	_, err = eventflux.NewStores(sm, mb)
+	_, err = eventflux.NewStores(ctx, sm, mb)
 	if err != nil {
 		slog.Error("Failed to create stores", slog.Any("error", err))
 		os.Exit(1)
@@ -100,16 +118,6 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		w.WriteHeader(http.StatusOK)
 	})
-
-	// Context from signal
-	sigIntCh := make(chan os.Signal, 1)
-	signal.Notify(sigIntCh, os.Interrupt)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-sigIntCh
-		slog.Info("Shutting down...")
-		cancel()
-	}()
 
 	slog.Info("Starting server", slog.Any("port", *port))
 	tcpListener, err := net.Listen("tcp", fmt.Sprintf(":%s", *port))

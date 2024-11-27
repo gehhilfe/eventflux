@@ -4,6 +4,8 @@ github.com/gehhilfe/eventsourcing v0.0.0-20240915163141-526368b670bb h1:OwxCY4Lt
 github.com/gehhilfe/eventsourcing v0.0.0-20240915163141-526368b670bb/go.mod h1:PYzgqMuOLKxMZSSwuTdBxRxsCPiihZ8iDLibq8ADmnE=
 github.com/gehhilfe/eventsourcing/core v0.0.0-20240915163141-526368b670bb h1:KQM+bXU7mibNX2mdPZRLBfzmG601xvA5AJvHGHo22Qo=
 github.com/gehhilfe/eventsourcing/core v0.0.0-20240915163141-526368b670bb/go.mod h1:YV4uSj5xyOtMehErXDepwchwzkvts4lS3ViO0lQTfuU=
+github.com/go-logr/logr v1.4.1 h1:pKouT5E8xu9zeFC39JXRDukb6JFQPXM5p5I91188VAQ=
+github.com/go-logr/logr v1.4.1/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/klauspost/compress v1.17.11 h1:In6xLpyWOi1+C7tXUUWv2ot1QvBjxevKAaI6IXrJmUc=
@@ -26,6 +28,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
+github.com/veqryn/slog-context v0.7.0 h1:Ne7ajlR6Mjs2rQQtpg8k0eO6krR5wzpareh5VpV+V2s=
+github.com/veqryn/slog-context v0.7.0/go.mod h1:E+qpdyiQs2YKRxFnX1JjpdFE1z3Ka94Kem2q9ZG6Jjo=
 go.etcd.io/bbolt v1.3.11 h1:yGEzV1wPz2yVCLsD8ZAiGHhHVlczyC9d1rP43/VCRJ0=
 go.etcd.io/bbolt v1.3.11/go.mod h1:dksAq7YMXoljX0xu6VF5DMZGbhYYoLUalEiSySYAS4I=
 golang.org/x/crypto v0.29.0 h1:L5SG1JTTXupVV3n6sUqMTeWbjAyfPwoda2DLX8J8FrQ=
