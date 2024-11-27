@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
@@ -24,8 +25,27 @@ func (id *StoreId) UnmarshalText(data []byte) error {
 	return nil
 }
 
+func (id *StoreId) Scan(src any) error {
+	var u uuid.UUID
+	if err := u.Scan(src); err != nil {
+		return err
+	}
+	*id = StoreId(u)
+	return nil
+}
+
 func (id StoreId) String() string {
 	return uuid.UUID(id).String()
+}
+
+type Metadata map[string]string
+
+func (m *Metadata) Scan(src any) error {
+	data, ok := src.([]uint8)
+	if !ok {
+		return errors.New("invalid data type for Metadata")
+	}
+	return json.Unmarshal(data, m)
 }
 
 var (
@@ -44,17 +64,17 @@ func (e *EventOutOfOrderError) Error() string {
 }
 
 type StoreManager interface {
-	List(metadata map[string]string) iter.Seq[SubStore]
-	Create(id StoreId, metadata map[string]string) (SubStore, error)
+	List(metadata Metadata) iter.Seq[SubStore]
+	Create(id StoreId, metadata Metadata) (SubStore, error)
 	Get(id StoreId) (SubStore, error)
-	OnCommit(handler func(SubStore, []core.Event)) Unsubscriber
-	All(starts map[StoreId]core.Version) (iter.Seq[StoreEvent], error)
+	OnCommit(handler func(SubStore, []Event)) Unsubscriber
+	All(fluxVersion core.Version) (iter.Seq[Event], error)
 }
 
 type SubStore interface {
 	core.EventStore
 	Id() StoreId
-	Metadata() map[string]string
+	Metadata() Metadata
 	// start is the non inclusive version to start from
 	All(start core.Version) (iter.Seq[core.Event], error)
 	Append(event core.Event) error
@@ -64,14 +84,8 @@ type SubStore interface {
 	UpdateMetadata(metadata map[string]string) error
 }
 
-type StoreEvent struct {
-	StoreId       StoreId
-	StoreMetadata map[string]string
-	core.Event
-}
-
 type StoreIterator interface {
 	Close()
 	WaitForNext() bool
-	Value() StoreEvent
+	Value() Event
 }

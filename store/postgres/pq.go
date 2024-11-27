@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
-	"slices"
 
 	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing/core"
@@ -16,7 +15,11 @@ import (
 
 type StoreManager struct {
 	db          *sql.DB
-	onCommitCbs []func(fluxcore.SubStore, []core.Event)
+	onCommitCbs []func(fluxcore.SubStore, []fluxcore.Event)
+}
+
+func (sm *StoreManager) DB() *sql.DB {
+	return sm.db
 }
 
 func NewStoreManager(
@@ -29,7 +32,7 @@ func NewStoreManager(
 
 	m := &StoreManager{
 		db:          db,
-		onCommitCbs: make([]func(fluxcore.SubStore, []core.Event), 0),
+		onCommitCbs: make([]func(fluxcore.SubStore, []fluxcore.Event), 0),
 	}
 
 	tx, err := db.Begin()
@@ -201,7 +204,7 @@ END $$;
 	return m, nil
 }
 
-func (m *StoreManager) List(metadata map[string]string) iter.Seq[fluxcore.SubStore] {
+func (m *StoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubStore] {
 	metadataStr, _ := json.Marshal(metadata)
 
 	return func(yield func(fluxcore.SubStore) bool) {
@@ -253,20 +256,13 @@ func (m *StoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 
 	var pgId uint64
 	var storeId fluxcore.StoreId
-	var metadata map[string]string
+	var metadata fluxcore.Metadata
 
 	if res.Next() {
-		var storeIdStr string
-		var metadataStr string
-		err = res.Scan(&pgId, &storeIdStr, &metadataStr)
+		err = res.Scan(&pgId, &storeId, &metadata)
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal([]byte(metadataStr), &metadata)
-		if err != nil {
-			return nil, err
-		}
-		storeId = fluxcore.StoreId(uuid.MustParse(storeIdStr))
 
 		return &subStore{
 			manager:  m,
@@ -280,7 +276,7 @@ func (m *StoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 	}
 }
 
-func (m *StoreManager) Create(id fluxcore.StoreId, metadata map[string]string) (fluxcore.SubStore, error) {
+func (m *StoreManager) Create(id fluxcore.StoreId, metadata fluxcore.Metadata) (fluxcore.SubStore, error) {
 	metadataJson, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err
@@ -316,7 +312,7 @@ func (m *StoreManager) Create(id fluxcore.StoreId, metadata map[string]string) (
 	}, nil
 }
 
-func (m *StoreManager) OnCommit(cb func(fluxcore.SubStore, []core.Event)) fluxcore.Unsubscriber {
+func (m *StoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Event)) fluxcore.Unsubscriber {
 	m.onCommitCbs = append(m.onCommitCbs, cb)
 	return fluxcore.UnsubscribeFunc(func() error {
 		for i, c := range m.onCommitCbs {
@@ -329,30 +325,34 @@ func (m *StoreManager) OnCommit(cb func(fluxcore.SubStore, []core.Event)) fluxco
 	})
 }
 
-func (m *StoreManager) All(starts map[fluxcore.StoreId]core.Version) (iter.Seq[fluxcore.StoreEvent], error) {
-	return func(yield func(fluxcore.StoreEvent) bool) {
-		stores := slices.Collect(m.List(map[string]string{}))
+func (m *StoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
+	res, err := m.db.Query(`
+			SELECT events.id, events.store_id, events.aggregate_id, events.version, events.global_version, events.aggregate_type, events.created_at, events.reason, events.data, events.metadata, stores.metadata
+			FROM events
+			INNER JOIN stores ON events.store_id = stores.store_id
+			WHERE events.id > $1
+			ORDER BY events.id ASC;
+		`, start)
+	if err != nil {
+		return nil, err
+	}
+	return func(yield func(fluxcore.Event) bool) {
+		defer res.Close()
 
-		for _, s := range stores {
-			start, ok := starts[s.Id()]
-			if !ok {
-				start = 0
+		for res.Next() {
+			var e fluxcore.Event
+			err := res.Scan(&e.FluxVersion, &e.StoreId, &e.AggregateID, &e.Version, &e.GlobalVersion, &e.AggregateType, &e.Timestamp, &e.Reason, &e.Data, &e.Metadata, &e.StoreMetadata)
+			if err != nil {
+				return
 			}
-
-			eventIter, _ := s.All(start)
-			for event := range eventIter {
-				if !yield(fluxcore.StoreEvent{
-					StoreId: s.Id(),
-					Event:   event,
-				}) {
-					return
-				}
+			if !yield(e) {
+				return
 			}
 		}
 	}, nil
 }
 
-func (m *StoreManager) commited(s fluxcore.SubStore, events []core.Event) error {
+func (m *StoreManager) commited(s fluxcore.SubStore, events []fluxcore.Event) error {
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}

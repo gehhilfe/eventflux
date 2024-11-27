@@ -1,0 +1,45 @@
+services:
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
+  app-8080:
+    build:
+      context: .
+      dockerfile: example.Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - nats
+    command:
+      - "--server"
+      - "nats://nats:4222"
+      - "--port"
+      - "8080"
+      - "--store"
+      - "bolt"
+    working_dir: /data
+    volumes:
+      - data-8080:/data
+  app-9090:
+    build:
+      context: .
+      dockerfile: example.Dockerfile
+    ports:
+      - "9090:9090"
+    depends_on:
+      - nats
+    command:
+      - "--server"
+      - "nats://nats:4222"
+      - "--port"
+      - "9090"
+      - "--store"
+      - "bolt"
+    working_dir: /data
+    volumes:
+      - data-9090:/data
+
+volumes:
+  data-8080:
+  data-9090:

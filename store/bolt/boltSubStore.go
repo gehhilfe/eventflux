@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,7 @@ type boltEvent struct {
 	AggregateID    string
 	Version        uint64
 	GlobalVersion  uint64
+	FluxVersion    uint64
 	Reason         string
 	AggregateType  string
 	OwnedByStoreId string
@@ -31,19 +33,23 @@ type BoltSubStore struct {
 	manager  *BoltStoreManager
 	db       *bbolt.DB
 	id       fluxcore.StoreId
-	metadata map[string]string
+	metadata fluxcore.Metadata
 }
 
 func (s *BoltSubStore) Id() fluxcore.StoreId {
 	return s.id
 }
 
-func (s *BoltSubStore) Metadata() map[string]string {
+func (s *BoltSubStore) Metadata() fluxcore.Metadata {
 	return s.metadata
 }
 
 func (s *BoltSubStore) globalbucket() []byte {
 	return []byte(fmt.Sprint("global_", s.id.String()))
+}
+
+func (s *BoltSubStore) fluxbucket() []byte {
+	return []byte(fluxBucketName)
 }
 
 func (s *BoltSubStore) initialize() error {
@@ -102,12 +108,24 @@ func (s *BoltSubStore) Save(events []core.Event) error {
 		return core.ErrConcurrency
 	}
 
+	fluxBucket := tx.Bucket(s.fluxbucket())
+	if fluxBucket == nil {
+		return errors.New("flux bucket not found")
+	}
+
 	globalBucket := tx.Bucket(s.globalbucket())
 	if globalBucket == nil {
 		return errors.New("global bucket not found")
 	}
 
+	dataBucket := tx.Bucket([]byte(dataBucketName))
+	if dataBucket == nil {
+		return errors.New("data bucket not found")
+	}
+
 	var globalSequence uint64
+	var fluxBucketSequence uint64
+	fluxEvents := make([]fluxcore.Event, 0, len(events))
 	for i, event := range events {
 		sequence, err := evBucket.NextSequence()
 		if err != nil {
@@ -122,12 +140,19 @@ func (s *BoltSubStore) Save(events []core.Event) error {
 			return errors.New("could not get next sequence for global bucket")
 		}
 
+		// We also need to keep track of the order of the events in the flux bucket, which also includes events from other stores
+		fluxBucketSequence, err = fluxBucket.NextSequence()
+		if err != nil {
+			return errors.New("could not get next sequence for flux bucket")
+		}
+
 		// build the internal bolt event
 		bEvent := boltEvent{
 			AggregateID:    event.AggregateID,
 			AggregateType:  event.AggregateType,
 			Version:        uint64(event.Version),
 			GlobalVersion:  globalSequence,
+			FluxVersion:    fluxBucketSequence,
 			Reason:         event.Reason,
 			Timestamp:      event.Timestamp,
 			Metadata:       event.Metadata,
@@ -140,23 +165,39 @@ func (s *BoltSubStore) Save(events []core.Event) error {
 			return fmt.Errorf("could not serialize event: %v", err)
 		}
 
-		err = evBucket.Put(itob(sequence), value)
+		digest := sha256.Sum256(value)
+
+		err = evBucket.Put(itob(sequence), digest[:])
 		if err != nil {
 			return fmt.Errorf("could not save event %#v in bucket", event)
 		}
-		err = globalBucket.Put(itob(globalSequence), value)
+		err = globalBucket.Put(itob(globalSequence), digest[:])
 		if err != nil {
 			return fmt.Errorf("could not save global sequence pointer for %#v", string(bucketRef))
+		}
+		err = fluxBucket.Put(itob(fluxBucketSequence), digest[:])
+		if err != nil {
+			return fmt.Errorf("could not save flux sequence pointer for %#v", string(bucketRef))
+		}
+		err = dataBucket.Put(digest[:], value)
+		if err != nil {
+			return fmt.Errorf("could not save data for %#v", string(bucketRef))
 		}
 
 		// override the event in the slice exposing the GlobalVersion to the caller
 		events[i].GlobalVersion = core.Version(globalSequence)
+		fluxEvents = append(fluxEvents, fluxcore.Event{
+			Event:         events[i],
+			StoreId:       s.id,
+			StoreMetadata: s.metadata,
+			FluxVersion:   core.Version(fluxBucketSequence),
+		})
 	}
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("could not commit transaction: %v", err)
 	}
-	s.manager.commited(s, events)
+	s.manager.commited(s, fluxEvents)
 	return nil
 }
 
@@ -172,12 +213,19 @@ func (s *BoltSubStore) Get(ctx context.Context, id string, aggregateType string,
 		// no aggregate event stream
 		return core.ZeroIterator(), nil
 	}
+	dataBucket := tx.Bucket([]byte(dataBucketName))
+	if dataBucket == nil {
+		tx.Rollback()
+		return nil, errors.New("data bucket not found")
+	}
 	cursor := bucket.Cursor()
 
 	return func(yield func(core.Event, error) bool) {
-		for _, v := cursor.Seek(position(afterVersion)); v != nil; _, v = cursor.Next() {
+		defer tx.Rollback()
+		for _, digest := cursor.Seek(position(afterVersion)); digest != nil; _, digest = cursor.Next() {
+			data := dataBucket.Get(digest)
 			bEvent := boltEvent{}
-			err := json.Unmarshal(v, &bEvent)
+			err := json.Unmarshal(data, &bEvent)
 			if err != nil {
 				yield(core.Event{}, fmt.Errorf("could not deserialize event: %v", err))
 				return
@@ -195,6 +243,7 @@ func (s *BoltSubStore) Get(ctx context.Context, id string, aggregateType string,
 			}
 
 			if !yield(event, nil) {
+				// Close the read transaction
 				return
 			}
 		}
@@ -209,12 +258,23 @@ func (s *BoltSubStore) All(start core.Version) (iter.Seq[core.Event], error) {
 	}
 
 	globalBucket := tx.Bucket(s.globalbucket())
-	cursor := globalBucket.Cursor()
+	if globalBucket == nil {
+		return func(yield func(core.Event) bool) {}, nil
+	}
 
+	dataBucket := tx.Bucket([]byte(dataBucketName))
+	if dataBucket == nil {
+		tx.Rollback()
+		return nil, errors.New("data bucket not found")
+	}
+
+	cursor := globalBucket.Cursor()
 	return func(yield func(core.Event) bool) {
-		for k, v := cursor.Seek(position(start)); k != nil; k, v = cursor.Next() {
+		defer tx.Rollback()
+		for k, digest := cursor.Seek(position(start)); k != nil; k, digest = cursor.Next() {
+			data := dataBucket.Get(digest)
 			bEvent := boltEvent{}
-			err := json.Unmarshal(v, &bEvent)
+			err := json.Unmarshal(data, &bEvent)
 			if err != nil {
 				return
 			}
@@ -280,6 +340,20 @@ func (s *BoltSubStore) Append(event core.Event) error {
 	defer tx.Rollback()
 
 	globalBucket := tx.Bucket(s.globalbucket())
+	if globalBucket == nil {
+		return errors.New("could not find global bucket")
+	}
+
+	dataBucket := tx.Bucket([]byte(dataBucketName))
+	if dataBucket == nil {
+		return errors.New("could not find data bucket")
+	}
+
+	fluxBucket := tx.Bucket(s.fluxbucket())
+	if fluxBucket == nil {
+		return errors.New("flux bucket not found")
+	}
+
 	curGlobal := core.Version(globalBucket.Sequence())
 
 	// Check if the event is the next in the global sequence
@@ -338,10 +412,16 @@ func (s *BoltSubStore) Append(event core.Event) error {
 		return errors.New("could not get global sequence")
 	}
 
+	fluxBucketSequence, err := fluxBucket.NextSequence()
+	if err != nil {
+		return errors.New("could not get flux sequence")
+	}
+
 	boltEvent := boltEvent{
 		AggregateID:    event.AggregateID,
 		Version:        bucketSequence,
 		GlobalVersion:  globalSequence,
+		FluxVersion:    fluxBucketSequence,
 		Reason:         event.Reason,
 		AggregateType:  event.AggregateType,
 		OwnedByStoreId: s.id.String(),
@@ -355,14 +435,26 @@ func (s *BoltSubStore) Append(event core.Event) error {
 		return errors.New("could not serialize event")
 	}
 
-	err = bucket.Put(itob(bucketSequence), value)
+	digest := sha256.Sum256(value)
+
+	err = bucket.Put(itob(bucketSequence), digest[:])
 	if err != nil {
 		return errors.New("could not save event")
 	}
 
-	err = globalBucket.Put(itob(globalSequence), value)
+	err = globalBucket.Put(itob(globalSequence), digest[:])
 	if err != nil {
 		return errors.New("could not save global sequence")
+	}
+
+	err = fluxBucket.Put(itob(fluxBucketSequence), digest[:])
+	if err != nil {
+		return errors.New("could not save flux sequence")
+	}
+
+	err = dataBucket.Put(digest[:], value)
+	if err != nil {
+		return errors.New("could not save data")
 	}
 
 	return tx.Commit()

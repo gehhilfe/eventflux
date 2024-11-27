@@ -1,0 +1,10 @@
+GET http://localhost:8080/category
+
+###
+POST http://localhost:8080/category
+Content-Type: application/json
+
+{
+  "title": "Test Title",
+  "tag": "slug-tag3"
+}

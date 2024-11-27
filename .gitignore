@@ -23,3 +23,7 @@ go.work.sum
 
 # env file
 .env
+*__debug*
+
+# Testing bolt db
+cmd/example/test.db
