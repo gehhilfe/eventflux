@@ -81,7 +81,7 @@ type SubStore interface {
 
 	LastVersion() core.Version
 
-	UpdateMetadata(metadata map[string]string) error
+	UpdateMetadata(metadata Metadata) error
 }
 
 type StoreIterator interface {

@@ -180,7 +180,7 @@ func (s *subStore) Save(events []core.Event) error {
 	return nil
 }
 
-func (s *subStore) UpdateMetadata(metadata map[string]string) error {
+func (s *subStore) UpdateMetadata(metadata fluxcore.Metadata) error {
 	metadataJson, err := json.Marshal(metadata)
 	if err != nil {
 		return err

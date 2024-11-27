@@ -307,7 +307,7 @@ func (s *BoltSubStore) LastVersion() core.Version {
 	return core.Version(seq)
 }
 
-func (s *BoltSubStore) UpdateMetadata(metadata map[string]string) error {
+func (s *BoltSubStore) UpdateMetadata(metadata fluxcore.Metadata) error {
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err

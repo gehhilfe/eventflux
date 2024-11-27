@@ -224,7 +224,7 @@ func (m *StoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubSto
 			if err != nil {
 				return
 			}
-			var metadata map[string]string
+			var metadata fluxcore.Metadata
 			err = json.Unmarshal([]byte(metadataStr), &metadata)
 			if err != nil {
 				return

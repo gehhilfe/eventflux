@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/gehhilfe/eventflux/core"
 	test "github.com/nats-io/nats-server/v2/test"
 	"github.com/nats-io/nats.go"
 )
@@ -23,7 +24,7 @@ func TestNatsCoreBus(t *testing.T) {
 	var wg sync.WaitGroup
 	var receivedMessage []byte
 
-	a.Subscribe("test", func(message []byte, metadata map[string]string) error {
+	a.Subscribe("test", func(message []byte, metadata core.Metadata) error {
 		defer wg.Done()
 		receivedMessage = message
 		return nil

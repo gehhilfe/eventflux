@@ -8,12 +8,12 @@ import (
 
 type MessageBaseEvent struct {
 	StoreId       fluxcore.StoreId
-	StoreMetadata map[string]string
+	StoreMetadata fluxcore.Metadata
 }
 
 func FromSubStore(subStore fluxcore.SubStore) MessageBaseEvent {
 	// Create metadata map without type key
-	metadata := make(map[string]string)
+	metadata := make(fluxcore.Metadata)
 	for k, v := range subStore.Metadata() {
 		if k != "type" {
 			metadata[k] = v

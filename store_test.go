@@ -24,7 +24,7 @@ func TestEarlyResyncResponse(t *testing.T) {
 		mb,
 	)
 
-	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), fluxcore.Metadata{"type": "local"})
 	localStore.Append(core.Event{
 		AggregateID:   "1",
 		Version:       1,
@@ -40,22 +40,22 @@ func TestEarlyResyncResponse(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			fmt.Println("RequestResync")
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			if len(message.Events) != 1 {
 				t.Fatalf("Expected 1 event, got %d", len(message.Events))
 			}
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return nil
 		},
 	})
@@ -84,20 +84,20 @@ func TestResyncSending(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			if message.From != 0 {
 				t.Fatalf("Expected from 0, got %d", message.From)
 			}
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return nil
 		},
 	})
@@ -106,7 +106,7 @@ func TestResyncSending(t *testing.T) {
 	typed.Publish(&MessageCommitedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       fluxcore.StoreId(uuid.New()),
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		Event: core.Event{
 			AggregateID:   "1",
@@ -138,20 +138,20 @@ func TestResyncSendingDueToHeartBeat(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			if message.From != 0 {
 				t.Fatalf("Expected from 0, got %d", message.From)
 			}
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return nil
 		},
 	})
@@ -160,7 +160,7 @@ func TestResyncSendingDueToHeartBeat(t *testing.T) {
 	typed.Publish(&MessageHeartBeat{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       fluxcore.StoreId(uuid.New()),
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		LastVersion: 100,
 	})
@@ -183,20 +183,20 @@ func TestResyncSending2(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			if message.From != 3 {
 				t.Fatalf("Expected from 3, got %d", message.From)
 			}
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return nil
 		},
 	})
@@ -207,7 +207,7 @@ func TestResyncSending2(t *testing.T) {
 	typed.Publish(&MessageCommitedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		Event: core.Event{
 			AggregateID:   "1",
@@ -224,7 +224,7 @@ func TestResyncSending2(t *testing.T) {
 	typed.Publish(&MessageCommitedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		Event: core.Event{
 			AggregateID:   "1",
@@ -241,7 +241,7 @@ func TestResyncSending2(t *testing.T) {
 	typed.Publish(&MessageCommitedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		Event: core.Event{
 			AggregateID:   "1",
@@ -258,7 +258,7 @@ func TestResyncSending2(t *testing.T) {
 	typed.Publish(&MessageCommitedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
-			StoreMetadata: map[string]string{},
+			StoreMetadata: fluxcore.Metadata{},
 		},
 		Event: core.Event{
 			AggregateID:   "1",
@@ -286,23 +286,23 @@ func TestCommittedSending(t *testing.T) {
 		mb,
 	)
 
-	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), fluxcore.Metadata{"type": "local"})
 
 	typed := NewTypedMessageBus(mb)
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return nil
 		},
 	})
@@ -335,22 +335,22 @@ func TestHBSending(t *testing.T) {
 		mb,
 	)
 
-	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), map[string]string{"type": "local"})
+	localStore, _ := a.manager.Create(fluxcore.StoreId(uuid.New()), fluxcore.Metadata{"type": "local"})
 
 	typed := NewTypedMessageBus(mb)
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			if message.LastVersion != 1 {
 				t.Fatalf("Expected last version 1, got %d", message.LastVersion)

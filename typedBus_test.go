@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gehhilfe/eventflux/bus"
+	fluxcore "github.com/gehhilfe/eventflux/core"
 )
 
 func TestTypesMessageBusWithInMemoryBus(t *testing.T) {
@@ -16,15 +17,15 @@ func TestTypesMessageBusWithInMemoryBus(t *testing.T) {
 	countHeartBeat := 0
 
 	tm.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			countComitted++
 			return nil
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			countResync++
 			return nil
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			countHeartBeat++
 			return nil
 		},

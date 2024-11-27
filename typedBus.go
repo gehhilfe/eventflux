@@ -31,10 +31,10 @@ func (b *typedMessageBus) Publish(message Typer) error {
 }
 
 type typedMessageHandler struct {
-	Commited      func(message *MessageCommitedEvent, metadata map[string]string) error
-	RequestResync func(message *MessageRequestResync, metadata map[string]string) error
-	ResyncEvents  func(message *MessageResyncEvents, metadata map[string]string) error
-	HeartBeat     func(message *MessageHeartBeat, metadata map[string]string) error
+	Commited      func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error
+	RequestResync func(message *MessageRequestResync, metadata fluxcore.Metadata) error
+	ResyncEvents  func(message *MessageResyncEvents, metadata fluxcore.Metadata) error
+	HeartBeat     func(message *MessageHeartBeat, metadata fluxcore.Metadata) error
 }
 
 func (b *typedMessageBus) Subscribe(
@@ -44,7 +44,7 @@ func (b *typedMessageBus) Subscribe(
 		subscribers: make([]fluxcore.Unsubscriber, 0, 4),
 	}
 
-	subCommited, err := b.bus.Subscribe((&MessageCommitedEvent{}).Type(), func(message []byte, metadata map[string]string) error {
+	subCommited, err := b.bus.Subscribe((&MessageCommitedEvent{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
 		var msg MessageCommitedEvent
 		if err := json.Unmarshal(message, &msg); err != nil {
 			return err
@@ -56,7 +56,7 @@ func (b *typedMessageBus) Subscribe(
 	}
 	unsuber.subscribers = append(unsuber.subscribers, subCommited)
 
-	subResync, err := b.bus.Subscribe((&MessageRequestResync{}).Type(), func(message []byte, metadata map[string]string) error {
+	subResync, err := b.bus.Subscribe((&MessageRequestResync{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
 		var msg MessageRequestResync
 		if err := json.Unmarshal(message, &msg); err != nil {
 			return err
@@ -69,7 +69,7 @@ func (b *typedMessageBus) Subscribe(
 	}
 	unsuber.subscribers = append(unsuber.subscribers, subResync)
 
-	subResyncEvents, err := b.bus.Subscribe((&MessageResyncEvents{}).Type(), func(message []byte, metadata map[string]string) error {
+	subResyncEvents, err := b.bus.Subscribe((&MessageResyncEvents{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
 		var msg MessageResyncEvents
 		if err := json.Unmarshal(message, &msg); err != nil {
 			return err
@@ -82,7 +82,7 @@ func (b *typedMessageBus) Subscribe(
 	}
 	unsuber.subscribers = append(unsuber.subscribers, subResyncEvents)
 
-	subHeartBeat, err := b.bus.Subscribe((&MessageHeartBeat{}).Type(), func(message []byte, metadata map[string]string) error {
+	subHeartBeat, err := b.bus.Subscribe((&MessageHeartBeat{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
 		var msg MessageHeartBeat
 		if err := json.Unmarshal(message, &msg); err != nil {
 			return err

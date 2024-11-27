@@ -2,6 +2,8 @@ package bus
 
 import (
 	"testing"
+
+	"github.com/gehhilfe/eventflux/core"
 )
 
 func TestLeakyBus_SubscribeInMemory(t *testing.T) {
@@ -9,7 +11,7 @@ func TestLeakyBus_SubscribeInMemory(t *testing.T) {
 	leakyBus := NewLeakyBus(bus, 50) // Drop 50% of the messages
 
 	ctr := 0
-	_, err := leakyBus.Subscribe("subject", func(message []byte, metadata map[string]string) error {
+	_, err := leakyBus.Subscribe("subject", func(message []byte, metadata core.Metadata) error {
 		ctr++
 		return nil
 	})

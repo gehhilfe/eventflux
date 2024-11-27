@@ -188,7 +188,7 @@ func (s *InMemorySubStore) LastVersion() core.Version {
 	return core.Version(s.globalVersion.Load())
 }
 
-func (s *InMemorySubStore) UpdateMetadata(metadata map[string]string) error {
+func (s *InMemorySubStore) UpdateMetadata(metadata fluxcore.Metadata) error {
 	s.metadata = metadata
 	return nil
 }

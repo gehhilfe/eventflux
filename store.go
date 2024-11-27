@@ -62,16 +62,16 @@ func NewStores(
 	}()
 
 	stores.bus.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata map[string]string) error {
+		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
 			return stores.commitedReceived(message)
 		},
-		RequestResync: func(message *MessageRequestResync, metadata map[string]string) error {
+		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
 			return stores.requestResyncReceived(message)
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata map[string]string) error {
+		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
 			return stores.heartBeatReceived(message)
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata map[string]string) error {
+		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
 			return stores.resyncEventsReceived(message)
 		},
 	})
@@ -83,7 +83,7 @@ func (s *Stores) commitedReceived(m *MessageCommitedEvent) error {
 	// Get the store
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
-		metadata := map[string]string{"type": "remote"}
+		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
 			if k != "type" {
 				metadata[k] = v
@@ -167,7 +167,7 @@ func (s *Stores) requestResyncReceived(m *MessageRequestResync) error {
 func (s *Stores) resyncEventsReceived(m *MessageResyncEvents) error {
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
-		metadata := map[string]string{"type": "remote"}
+		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
 			if k != "type" {
 				metadata[k] = v
@@ -203,7 +203,7 @@ func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
 		// create store
-		metadata := map[string]string{"type": "remote"}
+		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
 			if k != "type" {
 				metadata[k] = v
@@ -227,7 +227,7 @@ func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
 	}
 
 	// Update metedata
-	metadata := make(map[string]string, len(store.Metadata()))
+	metadata := make(fluxcore.Metadata, len(store.Metadata()))
 	for k, v := range store.Metadata() {
 		metadata[k] = v
 	}

@@ -34,8 +34,8 @@ func (b *CoreNatsMessageBus) Publish(subject string, message []byte) error {
 	return b.nc.Publish(b.sub(subject), message)
 }
 
-func (b *CoreNatsMessageBus) Subscribe(subject string, handler func(message []byte, metadata map[string]string) error) (core.Unsubscriber, error) {
+func (b *CoreNatsMessageBus) Subscribe(subject string, handler func(message []byte, metadata core.Metadata) error) (core.Unsubscriber, error) {
 	return b.nc.Subscribe(b.sub(subject), func(m *nats.Msg) {
-		handler(m.Data, map[string]string{})
+		handler(m.Data, core.Metadata{})
 	})
 }

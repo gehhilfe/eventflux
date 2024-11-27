@@ -132,7 +132,7 @@ func (m *BoltStoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 	if data == nil {
 		return nil, fluxcore.ErrStoreNotFound
 	}
-	metadata := make(map[string]string)
+	metadata := make(fluxcore.Metadata)
 	err = json.Unmarshal(data, &metadata)
 	if err != nil {
 		return nil, fmt.Errorf("could not unmarshal metadata: %v", err)
@@ -173,7 +173,7 @@ func (m *BoltStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], er
 		defer tx.Rollback()
 		cursor := fluxBucket.Cursor()
 
-		lookup := map[string]map[string]string{}
+		lookup := map[string]fluxcore.Metadata{}
 
 		for k, digest := cursor.Seek(itob(uint64(start + 1))); k != nil; k, digest = cursor.Next() {
 			data := dataBucket.Get(digest)
@@ -193,7 +193,7 @@ func (m *BoltStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], er
 				if data == nil {
 					return
 				}
-				metadata := make(map[string]string)
+				metadata := make(fluxcore.Metadata)
 				err = json.Unmarshal(data, &metadata)
 				if err != nil {
 					return

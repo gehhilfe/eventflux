@@ -23,8 +23,8 @@ func (b *BusLogger) Publish(subject string, message []byte) error {
 	return b.bus.Publish(subject, message)
 }
 
-func (b *BusLogger) Subscribe(subject string, handler func(message []byte, metadata map[string]string) error) (core.Unsubscriber, error) {
-	return b.bus.Subscribe(subject, func(message []byte, metadata map[string]string) error {
+func (b *BusLogger) Subscribe(subject string, handler func(message []byte, metadata core.Metadata) error) (core.Unsubscriber, error) {
+	return b.bus.Subscribe(subject, func(message []byte, metadata core.Metadata) error {
 		slog.Info("Received message", slog.String("subject", subject), slog.String("message", string(message)), slog.Any("metadata", metadata))
 		return handler(message, metadata)
 	})

@@ -69,7 +69,7 @@ func main() {
 		break
 	}
 	if eventStore == nil {
-		eventStore, err = sm.Create(core.StoreId(uuid.New()), map[string]string{"type": "local"})
+		eventStore, err = sm.Create(core.StoreId(uuid.New()), core.Metadata{"type": "local"})
 		if err != nil {
 			slog.Error("Failed to create event store", slog.Any("error", err))
 			os.Exit(1)

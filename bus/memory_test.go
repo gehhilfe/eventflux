@@ -3,6 +3,8 @@ package bus
 import (
 	"sync"
 	"testing"
+
+	"github.com/gehhilfe/eventflux/core"
 )
 
 func TestInMemoryMessageBus_Publish(t *testing.T) {
@@ -11,7 +13,7 @@ func TestInMemoryMessageBus_Publish(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	bus.Subscribe("test", func(message []byte, metadata map[string]string) error {
+	bus.Subscribe("test", func(message []byte, metadata core.Metadata) error {
 		if string(message) != "test message" {
 			t.Errorf("expected 'test message', got %v", message)
 		}
