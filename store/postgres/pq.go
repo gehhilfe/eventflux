@@ -10,6 +10,8 @@ import (
 	"github.com/hallgren/eventsourcing/core"
 	_ "github.com/lib/pq"
 
+	"github.com/huandu/go-sqlbuilder"
+
 	fluxcore "github.com/gehhilfe/eventflux/core"
 )
 
@@ -325,14 +327,40 @@ func (m *StoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Event)) fl
 	})
 }
 
-func (m *StoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
-	res, err := m.db.Query(`
-			SELECT events.id, events.store_id, events.aggregate_id, events.version, events.global_version, events.aggregate_type, events.created_at, events.reason, events.data, events.metadata, stores.metadata
-			FROM events
-			INNER JOIN stores ON events.store_id = stores.store_id
-			WHERE events.id > $1
-			ORDER BY events.id ASC;
-		`, start)
+func condJsonMatch(sb *sqlbuilder.SelectBuilder, field string, value interface{}) error {
+	d, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	sb.Where(field + " @> " + sb.Args.Add(d))
+	return nil
+}
+
+func (m *StoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq[fluxcore.Event], error) {
+	sb := sqlbuilder.PostgreSQL.NewSelectBuilder()
+	sb.Select("events.id", "events.store_id", "events.aggregate_id", "events.version", "events.global_version", "events.aggregate_type", "events.created_at", "events.reason", "events.data", "events.metadata", "stores.metadata")
+	sb.From("events")
+	sb.JoinWithOption(sqlbuilder.InnerJoin, "stores", "events.store_id = stores.store_id")
+	sb.Where(sb.GreaterThan("events.id", start))
+
+	if filter.AggregateID != nil {
+		sb.Where(sb.Equal("events.aggregate_id", *filter.AggregateID))
+	}
+	if filter.AggregateType != nil {
+		sb.Where(sb.Equal("events.aggregate_type", *filter.AggregateType))
+	}
+	if filter.Metadata != nil {
+		condJsonMatch(sb, "events.metadata", filter.Metadata)
+	}
+	if filter.StoreMetadata != nil {
+		condJsonMatch(sb, "stores.metadata", filter.StoreMetadata)
+	}
+	sb.OrderBy("events.id")
+	sb.Asc()
+
+	sql, args := sb.Build()
+	res, err := m.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}

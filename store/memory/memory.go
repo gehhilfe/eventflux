@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"encoding/json"
 	"iter"
 	"sync"
 
@@ -121,14 +122,37 @@ func (m *InMemoryStoreManager) commited(s fluxcore.SubStore, events []fluxcore.E
 	return nil
 }
 
-func (m *InMemoryStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
+func (m *InMemoryStoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq[fluxcore.Event], error) {
 	return func(yield func(fluxcore.Event) bool) {
 		if start >= core.Version(len(m.fluxStore)) {
 			return
 		}
+	eventLoop:
 		for _, event := range m.fluxStore[start:] {
-			if !yield(event) {
-				return
+			if filter.AggregateType != nil && event.AggregateType != *filter.AggregateType {
+				continue eventLoop
+			}
+			if filter.AggregateID != nil && event.AggregateID != *filter.AggregateID {
+				continue eventLoop
+			}
+			if filter.Metadata != nil {
+				metadata := fluxcore.Metadata{}
+				_ = json.Unmarshal(event.Metadata, &metadata)
+				for k, v := range *filter.Metadata {
+					if metadata[k] != v {
+						continue eventLoop
+					}
+				}
+			}
+			if filter.StoreMetadata != nil {
+				for k, v := range *filter.StoreMetadata {
+					if event.StoreMetadata[k] != v {
+						continue eventLoop
+					}
+				}
+				if !yield(event) {
+					return
+				}
 			}
 		}
 	}, nil

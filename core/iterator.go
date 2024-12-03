@@ -10,7 +10,7 @@ import (
 	slogctx "github.com/veqryn/slog-context"
 )
 
-func Iterate(ctx context.Context, m StoreManager, fluxVersion core.Version) iter.Seq2[*Event, error] {
+func Iterate(ctx context.Context, m StoreManager, fluxVersion core.Version, filter Filter) iter.Seq2[*Event, error] {
 	logger := slogctx.FromCtx(ctx)
 	pacer := time.NewTicker(5 * time.Second)
 	continueSignal := make(chan struct{}, 1)
@@ -42,7 +42,7 @@ func Iterate(ctx context.Context, m StoreManager, fluxVersion core.Version) iter
 				}
 			}
 
-			iter, err := m.All(fluxVersion)
+			iter, err := m.All(fluxVersion, filter)
 			if err != nil {
 				logger.Error("Failed to get all events", slog.Any("error", err))
 				yield(nil, err)

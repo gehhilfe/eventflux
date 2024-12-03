@@ -63,12 +63,19 @@ func (e *EventOutOfOrderError) Error() string {
 	return fmt.Sprintf("event out of order: store=%s, expected=%d, actual=%d", e.StoreId, e.Expected, e.Actual)
 }
 
+type Filter struct {
+	AggregateType *string
+	AggregateID   *string
+	Metadata      *Metadata
+	StoreMetadata *Metadata
+}
+
 type StoreManager interface {
 	List(metadata Metadata) iter.Seq[SubStore]
 	Create(id StoreId, metadata Metadata) (SubStore, error)
 	Get(id StoreId) (SubStore, error)
 	OnCommit(handler func(SubStore, []Event)) Unsubscriber
-	All(fluxVersion core.Version) (iter.Seq[Event], error)
+	All(fluxVersion core.Version, filter Filter) (iter.Seq[Event], error)
 }
 
 type SubStore interface {

@@ -12,8 +12,11 @@ require (
 	go.etcd.io/bbolt v1.3.11
 )
 
+require github.com/huandu/xstrings v1.4.0 // indirect
+
 require (
 	github.com/go-logr/logr v1.4.1 // indirect
+	github.com/huandu/go-sqlbuilder v1.33.0
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/nats-io/jwt/v2 v2.7.2 // indirect

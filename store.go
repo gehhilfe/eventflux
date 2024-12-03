@@ -21,6 +21,8 @@ type Stores struct {
 	bus     *typedMessageBus
 
 	logger *slog.Logger
+
+	heartBeatInterval time.Duration
 }
 
 type Option func(*Stores)
@@ -36,6 +38,8 @@ func NewStores(
 		logger:  logger,
 		manager: manager,
 		bus:     NewTypedMessageBus(bus.NewBusLogger(logger, mb)),
+
+		heartBeatInterval: 5 * time.Second, // Default to 5 seconds
 	}
 
 	for _, opt := range opts {
@@ -54,7 +58,7 @@ func NewStores(
 	})
 
 	go func() {
-		t := time.NewTicker(5 * time.Second)
+		t := time.NewTicker(stores.heartBeatInterval)
 
 		for range t.C {
 			select {
@@ -261,5 +265,11 @@ func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
 func WithLogger(logger *slog.Logger) Option {
 	return func(s *Stores) {
 		s.logger = logger
+	}
+}
+
+func WithHeartBeatInterval(d time.Duration) Option {
+	return func(s *Stores) {
+		s.heartBeatInterval = d
 	}
 }
