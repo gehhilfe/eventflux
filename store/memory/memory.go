@@ -63,10 +63,11 @@ func (m *InMemoryStoreManager) Tx() *transaction {
 
 func (m *InMemoryStoreManager) List(metadata fluxcore.Metadata) iter.Seq[fluxcore.SubStore] {
 	return func(yield func(fluxcore.SubStore) bool) {
+	storeLoop:
 		for _, store := range m.stores {
 			for k, v := range metadata {
 				if store.metadata[k] != v {
-					continue
+					continue storeLoop
 				}
 			}
 			if !yield(store) {
