@@ -77,29 +77,34 @@ func NewStores(
 	}()
 
 	stores.bus.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
-			return stores.commitedReceived(message)
+		Commited: func(message *MessageCommitedEvent, busMetadata fluxcore.Metadata) error {
+			return stores.commitedReceived(message, busMetadata)
 		},
-		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
-			return stores.requestResyncReceived(message)
+		RequestResync: func(message *MessageRequestResync, busMetadata fluxcore.Metadata) error {
+			return stores.requestResyncReceived(message, busMetadata)
 		},
-		HeartBeat: func(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
-			return stores.heartBeatReceived(message)
+		HeartBeat: func(message *MessageHeartBeat, busMetadata fluxcore.Metadata) error {
+			return stores.heartBeatReceived(message, busMetadata)
 		},
-		ResyncEvents: func(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
-			return stores.resyncEventsReceived(message)
+		ResyncEvents: func(message *MessageResyncEvents, busMetadata fluxcore.Metadata) error {
+			return stores.resyncEventsReceived(message, busMetadata)
 		},
 	})
 
 	return stores, nil
 }
 
-func (s *Stores) commitedReceived(m *MessageCommitedEvent) error {
+func (s *Stores) commitedReceived(m *MessageCommitedEvent, busMetadata fluxcore.Metadata) error {
 	// Get the store
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
 		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
+			if k != "type" {
+				metadata[k] = v
+			}
+		}
+		for k, v := range busMetadata {
 			if k != "type" {
 				metadata[k] = v
 			}
@@ -149,7 +154,8 @@ func chunk[E any](seq iter.Seq[E], size int) iter.Seq[[]E] {
 	}
 }
 
-func (s *Stores) requestResyncReceived(m *MessageRequestResync) error {
+func (s *Stores) requestResyncReceived(m *MessageRequestResync, busMetadata fluxcore.Metadata) error {
+	_ = busMetadata
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
 		return nil
@@ -179,11 +185,16 @@ func (s *Stores) requestResyncReceived(m *MessageRequestResync) error {
 	return nil
 }
 
-func (s *Stores) resyncEventsReceived(m *MessageResyncEvents) error {
+func (s *Stores) resyncEventsReceived(m *MessageResyncEvents, busMetadata fluxcore.Metadata) error {
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {
 		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
+			if k != "type" {
+				metadata[k] = v
+			}
+		}
+		for k, v := range busMetadata {
 			if k != "type" {
 				metadata[k] = v
 			}
@@ -210,7 +221,7 @@ func (s *Stores) resyncEventsReceived(m *MessageResyncEvents) error {
 	return nil
 }
 
-func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
+func (s *Stores) heartBeatReceived(m *MessageHeartBeat, busMetadata fluxcore.Metadata) error {
 	if m.LastVersion == 0 {
 		return nil
 	}
@@ -220,6 +231,11 @@ func (s *Stores) heartBeatReceived(m *MessageHeartBeat) error {
 		// create store
 		metadata := fluxcore.Metadata{"type": "remote"}
 		for k, v := range m.StoreMetadata {
+			if k != "type" {
+				metadata[k] = v
+			}
+		}
+		for k, v := range busMetadata {
 			if k != "type" {
 				metadata[k] = v
 			}
