@@ -152,9 +152,9 @@ func (m *InMemoryStoreManager) All(start core.Version, filter fluxcore.Filter) (
 						continue eventLoop
 					}
 				}
-				if !yield(event) {
-					return
-				}
+			}
+			if !yield(event) {
+				return
 			}
 		}
 	}, nil
