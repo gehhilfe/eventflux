@@ -247,7 +247,11 @@ END $$;
 				if n.Extra == m.instanceId.String() {
 					continue
 				}
-				m.committed(nil, nil)
+
+				// Notify listeners
+				for _, cb := range m.onCommitCbs {
+					cb(nil, nil)
+				}
 			}
 		}
 	}()
