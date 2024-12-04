@@ -435,9 +435,11 @@ func (m *StoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq
 
 func (m *StoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
 	// Notify listeners
-	_, err := m.db.Exec("NOTIFY eventfluxcommitted, '" + m.instanceId.String() + "';")
-	if err != nil {
-		return err
+	if s.Metadata()["type"] == "local" {
+		_, err := m.db.Exec("NOTIFY eventfluxcommitted, '" + m.instanceId.String() + "';")
+		if err != nil {
+			return err
+		}
 	}
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
