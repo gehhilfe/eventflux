@@ -89,7 +89,7 @@ func (v *NotificationView) Project(ctx context.Context) {
 	}
 
 	// Start projecting the events from the current state
-	for event := range fluxcore.Iterate(ctx, v.storeManager, v.state.LastVersion) {
+	for event := range fluxcore.Iterate(ctx, v.storeManager, v.state.LastVersion, fluxcore.Filter{}) {
 		if event.AggregateType != "NotificationAggregate" {
 			continue
 		}

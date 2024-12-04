@@ -131,7 +131,7 @@ func StreamNotificationsHandler(sm fluxcore.StoreManager) func(w http.ResponseWr
 
 		encoder := json.NewEncoder(w)
 
-		for event, err := range fluxcore.Iterate(r.Context(), sm, startVersion) {
+		for event, err := range fluxcore.Iterate(r.Context(), sm, startVersion, fluxcore.Filter{}) {
 			if err != nil {
 				fmt.Fprintf(w, "event: %s\n\n", err)
 				w.(http.Flusher).Flush()

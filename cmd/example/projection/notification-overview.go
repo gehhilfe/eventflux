@@ -41,7 +41,7 @@ func NewNotificationOverview(
 }
 
 func (n *NotificationOverview) Project(ctx context.Context) {
-	for event := range fluxcore.Iterate(ctx, n.storeManager, 0) {
+	for event := range fluxcore.Iterate(ctx, n.storeManager, 0, fluxcore.Filter{}) {
 		if event.AggregateType != "NotificationAggregate" {
 			continue
 		}
