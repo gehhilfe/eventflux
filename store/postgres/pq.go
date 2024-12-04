@@ -233,9 +233,9 @@ END $$;
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	m.listener.Listen("event-flux.committed")
+	m.listener.Listen("eventflux.committed")
 	go func() {
-		defer m.listener.Unlisten("event-flux.committed")
+		defer m.listener.Unlisten("eventflux.committed")
 		for {
 			select {
 			case <-ctx.Done():
@@ -431,7 +431,7 @@ func (m *StoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq
 
 func (m *StoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
 	// Notify listeners
-	m.db.Exec("NOTIFY event-flux.committed, ?", m.instanceId.String())
+	m.db.Exec("NOTIFY eventflux.committed, ?", m.instanceId.String())
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}
