@@ -116,8 +116,6 @@ func (m *InMemoryStoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Ev
 }
 
 func (m *InMemoryStoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
-	m.fluxStore = append(m.fluxStore, events...)
-
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}
