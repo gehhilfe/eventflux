@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"iter"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hallgren/eventsourcing/core"
 
@@ -22,16 +23,16 @@ type InMemoryStoreManager struct {
 type transaction struct {
 	manager   *InMemoryStoreManager
 	before    core.Version
-	didCommit bool
+	didCommit atomic.Bool
 }
 
 func (t *transaction) Commit() {
-	t.didCommit = true
+	t.didCommit.Store(true)
 	t.manager.transactionLock.Unlock()
 }
 
 func (t *transaction) Rollback() {
-	if t.didCommit {
+	if t.didCommit.Load() {
 		return
 	}
 	t.manager.nextFluxVersion = t.before
@@ -114,7 +115,7 @@ func (m *InMemoryStoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Ev
 	})
 }
 
-func (m *InMemoryStoreManager) commited(s fluxcore.SubStore, events []fluxcore.Event) error {
+func (m *InMemoryStoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
 	m.fluxStore = append(m.fluxStore, events...)
 
 	for _, cb := range m.onCommitCbs {

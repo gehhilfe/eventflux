@@ -197,7 +197,7 @@ func (s *BoltSubStore) Save(events []core.Event) error {
 	if err != nil {
 		return fmt.Errorf("could not commit transaction: %v", err)
 	}
-	s.manager.commited(s, fluxEvents)
+	s.manager.committed(s, fluxEvents)
 	return nil
 }
 
@@ -457,7 +457,19 @@ func (s *BoltSubStore) Append(event core.Event) error {
 		return errors.New("could not save data")
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	s.manager.committed(s, []fluxcore.Event{{
+		StoreId:       s.id,
+		StoreMetadata: s.metadata,
+		FluxVersion:   core.Version(fluxBucketSequence),
+		Event:         event,
+	}})
+
+	return nil
 }
 
 // bucketRef return the reference where to store and fetch events

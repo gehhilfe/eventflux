@@ -45,7 +45,7 @@ func TestEarlyResyncResponse(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
 		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
@@ -93,7 +93,7 @@ func TestResyncSending(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
 		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
@@ -112,7 +112,7 @@ func TestResyncSending(t *testing.T) {
 	})
 	wg.Add(1)
 
-	typed.Publish(&MessageCommitedEvent{
+	typed.Publish(&MessageCommittedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       fluxcore.StoreId(uuid.New()),
 			StoreMetadata: fluxcore.Metadata{},
@@ -151,7 +151,7 @@ func TestResyncSendingDueToHeartBeat(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
 		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
@@ -200,7 +200,7 @@ func TestResyncSending2(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
 		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {
@@ -221,7 +221,7 @@ func TestResyncSending2(t *testing.T) {
 
 	storeId := fluxcore.StoreId(uuid.New())
 
-	typed.Publish(&MessageCommitedEvent{
+	typed.Publish(&MessageCommittedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
 			StoreMetadata: fluxcore.Metadata{},
@@ -238,7 +238,7 @@ func TestResyncSending2(t *testing.T) {
 		},
 	})
 
-	typed.Publish(&MessageCommitedEvent{
+	typed.Publish(&MessageCommittedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
 			StoreMetadata: fluxcore.Metadata{},
@@ -255,7 +255,7 @@ func TestResyncSending2(t *testing.T) {
 		},
 	})
 
-	typed.Publish(&MessageCommitedEvent{
+	typed.Publish(&MessageCommittedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
 			StoreMetadata: fluxcore.Metadata{},
@@ -272,7 +272,7 @@ func TestResyncSending2(t *testing.T) {
 		},
 	})
 
-	typed.Publish(&MessageCommitedEvent{
+	typed.Publish(&MessageCommittedEvent{
 		MessageBaseEvent: MessageBaseEvent{
 			StoreId:       storeId,
 			StoreMetadata: fluxcore.Metadata{},
@@ -313,7 +313,7 @@ func TestCommittedSending(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			defer wg.Done()
 			return nil
 		},
@@ -366,7 +366,7 @@ func TestHBSending(t *testing.T) {
 
 	var wg sync.WaitGroup
 	typed.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			return nil
 		},
 		RequestResync: func(message *MessageRequestResync, metadata fluxcore.Metadata) error {

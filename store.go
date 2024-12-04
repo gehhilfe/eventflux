@@ -47,9 +47,12 @@ func NewStores(
 	}
 
 	stores.manager.OnCommit(func(s fluxcore.SubStore, events []fluxcore.Event) {
+		if s == nil || len(events) == 0 {
+			return
+		}
 		if v, ok := s.Metadata()["type"]; ok && v == "local" {
 			for _, e := range events {
-				stores.bus.Publish(&MessageCommitedEvent{
+				stores.bus.Publish(&MessageCommittedEvent{
 					MessageBaseEvent: FromSubStore(s),
 					Event:            e.Event,
 				})
@@ -76,17 +79,17 @@ func NewStores(
 		}
 	}()
 
-	stores.bus.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, busMetadata fluxcore.Metadata) error {
-			return stores.commitedReceived(message, busMetadata)
+	stores.bus.Subscribe(&typedMessageHandler{
+		CommittedHandler: func(message *MessageCommittedEvent, busMetadata fluxcore.Metadata) error {
+			return stores.committedReceived(message, busMetadata)
 		},
-		RequestResync: func(message *MessageRequestResync, busMetadata fluxcore.Metadata) error {
+		RequestResyncHandler: func(message *MessageRequestResync, busMetadata fluxcore.Metadata) error {
 			return stores.requestResyncReceived(message, busMetadata)
 		},
-		HeartBeat: func(message *MessageHeartBeat, busMetadata fluxcore.Metadata) error {
+		HeartBeatHandler: func(message *MessageHeartBeat, busMetadata fluxcore.Metadata) error {
 			return stores.heartBeatReceived(message, busMetadata)
 		},
-		ResyncEvents: func(message *MessageResyncEvents, busMetadata fluxcore.Metadata) error {
+		ResyncEventsHandler: func(message *MessageResyncEvents, busMetadata fluxcore.Metadata) error {
 			return stores.resyncEventsReceived(message, busMetadata)
 		},
 	})
@@ -94,7 +97,7 @@ func NewStores(
 	return stores, nil
 }
 
-func (s *Stores) commitedReceived(m *MessageCommitedEvent, busMetadata fluxcore.Metadata) error {
+func (s *Stores) committedReceived(m *MessageCommittedEvent, busMetadata fluxcore.Metadata) error {
 	// Get the store
 	store, err := s.manager.Get(m.StoreId)
 	if errors.Is(err, fluxcore.ErrStoreNotFound) {

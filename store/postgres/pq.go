@@ -1,14 +1,18 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"iter"
+	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hallgren/eventsourcing/core"
-	_ "github.com/lib/pq"
+	pq "github.com/lib/pq"
+	slogctx "github.com/veqryn/slog-context"
 
 	"github.com/huandu/go-sqlbuilder"
 
@@ -16,8 +20,10 @@ import (
 )
 
 type StoreManager struct {
+	instanceId  uuid.UUID
 	db          *sql.DB
 	onCommitCbs []func(fluxcore.SubStore, []fluxcore.Event)
+	listener    *pq.Listener
 }
 
 func (sm *StoreManager) DB() *sql.DB {
@@ -25,16 +31,40 @@ func (sm *StoreManager) DB() *sql.DB {
 }
 
 func NewStoreManager(
+	ctx context.Context,
 	uri string,
 ) (*StoreManager, error) {
+	logger := slogctx.FromCtx(ctx)
+
 	db, err := sql.Open("postgres", uri)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
+	listener := pq.NewListener(uri, 10*time.Second, time.Minute, func(ev pq.ListenerEventType, err error) {
+		eventTypeStr := "unknown"
+		switch ev {
+		case pq.ListenerEventConnected:
+			eventTypeStr = "connected"
+		case pq.ListenerEventConnectionAttemptFailed:
+			eventTypeStr = "connection_attempt_failed"
+		case pq.ListenerEventDisconnected:
+			eventTypeStr = "disconnected"
+		case pq.ListenerEventReconnected:
+			eventTypeStr = "reconnected"
+		}
+		if err != nil {
+			logger.Error("Postgres listener event", slog.Any("error", err), slog.String("event_type", eventTypeStr))
+		} else {
+			logger.Info("Postgres listener event", slog.String("event_type", eventTypeStr))
+		}
+	})
+
 	m := &StoreManager{
+		instanceId:  uuid.New(),
 		db:          db,
 		onCommitCbs: make([]func(fluxcore.SubStore, []fluxcore.Event), 0),
+		listener:    listener,
 	}
 
 	tx, err := db.Begin()
@@ -202,6 +232,25 @@ END $$;
 	if tx.Commit() != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	m.listener.Listen("event-flux.committed")
+	go func() {
+		defer m.listener.Unlisten("event-flux.committed")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case n := <-m.listener.Notify:
+				if n == nil {
+					return
+				}
+				if n.Extra == m.instanceId.String() {
+					continue
+				}
+				m.committed(nil, nil)
+			}
+		}
+	}()
 
 	return m, nil
 }
@@ -380,7 +429,9 @@ func (m *StoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq
 	}, nil
 }
 
-func (m *StoreManager) commited(s fluxcore.SubStore, events []fluxcore.Event) error {
+func (m *StoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
+	// Notify listeners
+	m.db.Exec("NOTIFY event-flux.committed, ?", m.instanceId.String())
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}

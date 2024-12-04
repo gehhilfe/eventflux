@@ -31,25 +31,48 @@ func (b *typedMessageBus) Publish(message Typer) error {
 }
 
 type typedMessageHandler struct {
-	Commited      func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error
-	RequestResync func(message *MessageRequestResync, metadata fluxcore.Metadata) error
-	ResyncEvents  func(message *MessageResyncEvents, metadata fluxcore.Metadata) error
-	HeartBeat     func(message *MessageHeartBeat, metadata fluxcore.Metadata) error
+	CommittedHandler     func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error
+	RequestResyncHandler func(message *MessageRequestResync, metadata fluxcore.Metadata) error
+	ResyncEventsHandler  func(message *MessageResyncEvents, metadata fluxcore.Metadata) error
+	HeartBeatHandler     func(message *MessageHeartBeat, metadata fluxcore.Metadata) error
+}
+
+func (t *typedMessageHandler) Committed(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
+	return t.CommittedHandler(message, metadata)
+}
+
+func (t *typedMessageHandler) RequestResync(message *MessageRequestResync, metadata fluxcore.Metadata) error {
+	return t.RequestResyncHandler(message, metadata)
+}
+
+func (t *typedMessageHandler) ResyncEvents(message *MessageResyncEvents, metadata fluxcore.Metadata) error {
+	return t.ResyncEventsHandler(message, metadata)
+}
+
+func (t *typedMessageHandler) HeartBeat(message *MessageHeartBeat, metadata fluxcore.Metadata) error {
+	return t.HeartBeatHandler(message, metadata)
+}
+
+type messageHandler interface {
+	Committed(message *MessageCommittedEvent, metadata fluxcore.Metadata) error
+	RequestResync(message *MessageRequestResync, metadata fluxcore.Metadata) error
+	ResyncEvents(message *MessageResyncEvents, metadata fluxcore.Metadata) error
+	HeartBeat(message *MessageHeartBeat, metadata fluxcore.Metadata) error
 }
 
 func (b *typedMessageBus) Subscribe(
-	handler typedMessageHandler,
+	handler messageHandler,
 ) (fluxcore.Unsubscriber, error) {
 	unsuber := &unsubscriber{
 		subscribers: make([]fluxcore.Unsubscriber, 0, 4),
 	}
 
-	subCommited, err := b.bus.Subscribe((&MessageCommitedEvent{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
-		var msg MessageCommitedEvent
+	subCommited, err := b.bus.Subscribe((&MessageCommittedEvent{}).Type(), func(message []byte, metadata fluxcore.Metadata) error {
+		var msg MessageCommittedEvent
 		if err := json.Unmarshal(message, &msg); err != nil {
 			return err
 		}
-		return handler.Commited(&msg, metadata)
+		return handler.Committed(&msg, metadata)
 	})
 	if err != nil {
 		return nil, err

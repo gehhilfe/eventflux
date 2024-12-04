@@ -73,6 +73,20 @@ func (s *subStore) Append(e core.Event) error {
 	}
 	defer res.Close()
 
+	var fluxVersion core.Version
+	if res.Next() {
+		err = res.Scan(&fluxVersion)
+		if err != nil {
+			return err
+		}
+	}
+
+	s.manager.committed(s, []fluxcore.Event{{
+		StoreId:       s.storeId,
+		StoreMetadata: s.metadata,
+		FluxVersion:   fluxVersion,
+		Event:         e,
+	}})
 	return nil
 }
 
@@ -176,7 +190,7 @@ func (s *subStore) Save(events []core.Event) error {
 		return err
 	}
 
-	s.manager.commited(s, fluxEvents)
+	s.manager.committed(s, fluxEvents)
 	return nil
 }
 

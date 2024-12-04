@@ -25,7 +25,7 @@ func FromSubStore(subStore fluxcore.SubStore) MessageBaseEvent {
 	}
 }
 
-type MessageCommitedEvent struct {
+type MessageCommittedEvent struct {
 	MessageBaseEvent
 	core.Event
 }
@@ -45,8 +45,8 @@ type MessageHeartBeat struct {
 	LastVersion core.Version
 }
 
-func (m *MessageCommitedEvent) Type() string {
-	return "commited-event.v1"
+func (m *MessageCommittedEvent) Type() string {
+	return "committed-event.v1"
 }
 
 func (m *MessageRequestResync) Type() string {

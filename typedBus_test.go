@@ -17,7 +17,7 @@ func TestTypesMessageBusWithInMemoryBus(t *testing.T) {
 	countHeartBeat := 0
 
 	tm.Subscribe(typedMessageHandler{
-		Commited: func(message *MessageCommitedEvent, metadata fluxcore.Metadata) error {
+		Committed: func(message *MessageCommittedEvent, metadata fluxcore.Metadata) error {
 			countComitted++
 			return nil
 		},
@@ -31,7 +31,7 @@ func TestTypesMessageBusWithInMemoryBus(t *testing.T) {
 		},
 	})
 
-	tm.Publish(&MessageCommitedEvent{})
+	tm.Publish(&MessageCommittedEvent{})
 	tm.Publish(&MessageRequestResync{})
 	tm.Publish(&MessageHeartBeat{})
 	tm.Publish(&MessageHeartBeat{})

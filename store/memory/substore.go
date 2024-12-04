@@ -96,7 +96,7 @@ func (s *InMemorySubStore) Save(events []core.Event) error {
 		events[i].GlobalVersion = globalVersion
 	}
 	tx.Commit()
-	s.manager.commited(s, fluxEvents)
+	s.manager.committed(s, fluxEvents)
 	return nil
 }
 
@@ -181,6 +181,7 @@ func (s *InMemorySubStore) Append(event core.Event) error {
 
 	s.manager.fluxStore = append(s.manager.fluxStore, fluxEvent)
 	tx.Commit()
+	s.manager.committed(s, []fluxcore.Event{fluxEvent})
 	return nil
 }
 

@@ -237,7 +237,7 @@ func (m *BoltStoreManager) OnCommit(cb func(fluxcore.SubStore, []fluxcore.Event)
 	})
 }
 
-func (m *BoltStoreManager) commited(s fluxcore.SubStore, events []fluxcore.Event) error {
+func (m *BoltStoreManager) committed(s fluxcore.SubStore, events []fluxcore.Event) error {
 	for _, cb := range m.onCommitCbs {
 		cb(s, events)
 	}
