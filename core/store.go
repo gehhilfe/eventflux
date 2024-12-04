@@ -74,6 +74,12 @@ type StoreManager interface {
 	List(metadata Metadata) iter.Seq[SubStore]
 	Create(id StoreId, metadata Metadata) (SubStore, error)
 	Get(id StoreId) (SubStore, error)
+
+	// OnCommit registers a callback that will be called after events have been committed to the store.
+	// If events are committed in a transaction, the callback will be called after the transaction has been committed.
+	// If a shared storage is used, it could be that the handler is called with nil values. E.g. when two processes are using a
+	// shared postgres database, the handler will be called with nil values for the SubStore and events, in the process that did not
+	// commit the events.
 	OnCommit(handler func(SubStore, []Event)) Unsubscriber
 	All(fluxVersion core.Version, filter Filter) (iter.Seq[Event], error)
 }
