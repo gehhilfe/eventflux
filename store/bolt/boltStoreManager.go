@@ -145,7 +145,7 @@ func (m *BoltStoreManager) Get(id fluxcore.StoreId) (fluxcore.SubStore, error) {
 	}, nil
 }
 
-func (m *BoltStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], error) {
+func (m *BoltStoreManager) All(start core.Version, filter fluxcore.Filter) (iter.Seq[fluxcore.Event], error) {
 	tx, err := m.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -215,6 +215,43 @@ func (m *BoltStoreManager) All(start core.Version) (iter.Seq[fluxcore.Event], er
 					Data:          boltEvent.Data,
 					Metadata:      boltEvent.Metadata,
 				},
+			}
+
+			if filter.AggregateID != nil && *filter.AggregateID != fluxEvent.AggregateID {
+				continue
+			}
+			if filter.AggregateType != nil && *filter.AggregateType != fluxEvent.AggregateType {
+				continue
+			}
+			if filter.Metadata != nil {
+				matches := true
+				eMetadata := fluxcore.Metadata{}
+				err := json.Unmarshal(fluxEvent.Metadata, &eMetadata)
+				if err != nil {
+					return
+				}
+
+				for k, v := range *filter.Metadata {
+					if eMetadata[k] != v {
+						matches = false
+						break
+					}
+				}
+				if !matches {
+					continue
+				}
+			}
+			if filter.StoreMetadata != nil {
+				matches := true
+				for k, v := range *filter.StoreMetadata {
+					if fluxEvent.StoreMetadata[k] != v {
+						matches = false
+						break
+					}
+				}
+				if !matches {
+					continue
+				}
 			}
 
 			if !yield(fluxEvent) {
